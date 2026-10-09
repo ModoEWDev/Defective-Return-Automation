@@ -1,9 +1,10 @@
 const { TableClient } = require('@azure/data-tables');
 
 const TABLE_NAME = 'WarrantyClaims';
-// Reuses the storage account every Function App already has (AzureWebJobsStorage)
-// rather than provisioning a separate one just for this.
-const connectionString = process.env.AzureWebJobsStorage;
+// Static Web Apps' Managed Functions model abstracts away its own internal
+// storage account, so AzureWebJobsStorage isn't usable here the way it would
+// be on a standalone Function App — this needs its own dedicated connection.
+const connectionString = process.env.CLAIM_TRACKING_STORAGE_CONNECTION_STRING;
 
 let tableClientPromise;
 

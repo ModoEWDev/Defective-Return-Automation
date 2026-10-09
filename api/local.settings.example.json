@@ -2,6 +2,7 @@
   "IsEncrypted": false,
   "Values": {
     "AzureWebJobsStorage": "UseDevelopmentStorage=true",
+    "CLAIM_TRACKING_STORAGE_CONNECTION_STRING": "UseDevelopmentStorage=true",
     "FUNCTIONS_WORKER_RUNTIME": "node",
     "NETSUITE_ACCOUNT_ID": "",
     "NETSUITE_CLIENT_ID": "",

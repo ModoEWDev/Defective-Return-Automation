@@ -1,93 +1,545 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Coming Soon | My Awesome Website</title>
-    <style>
-        * {
-            box-sizing: border-box;
-            margin: 0;
-            padding: 0;
-        }
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Warranty Claims — MODO</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Archivo:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #FAFAF8;
+    --panel: #FFFFFF;
+    --text: #1A1A1A;
+    --text-soft: #6B6B66;
+    --accent: #2D5F5D;
+    --accent-soft: #E7EEED;
+    --border: #E3E1DB;
+    --approved: #3F7D58;
+    --approved-bg: #EEF4EF;
+    --offer: #A67C3D;
+    --offer-bg: #F8F1E6;
+    --escalate: #5B6770;
+    --escalate-bg: #EEF0F1;
+    --error: #B3453F;
+    --error-bg: #FAEDEC;
+    --radius: 10px;
+    box-sizing: border-box;
+    padding-top: env(safe-area-inset-top, 0px);
+    padding-bottom: env(safe-area-inset-bottom, 0px);
+  }
 
-        body {
-            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-            background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
-            color: #333333;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            height: 100vh;
-            padding: 20px;
-            text-align: center;
-        }
+  * { box-sizing: inherit; }
 
-        .container {
-            max-width: 600px;
-            background: rgba(255, 255, 255, 0.9);
-            padding: 40px;
-            border-radius: 16px;
-            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
-        }
+  html, body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'Archivo', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    -webkit-font-smoothing: antialiased;
+  }
 
-        .logo {
-            font-size: 2.5rem;
-            font-weight: 700;
-            color: #4a90e2;
-            margin-bottom: 20px;
-        }
+  body {
+    min-height: 100%;
+    display: flex;
+    justify-content: center;
+    padding: 56px 20px 80px;
+  }
 
-        h1 {
-            font-size: 2rem;
-            margin-bottom: 15px;
-            color: #222222;
-        }
+  main {
+    width: 100%;
+    max-width: 560px;
+  }
 
-        p {
-            font-size: 1.1rem;
-            line-height: 1.6;
-            color: #666666;
-            margin-bottom: 30px;
-        }
+  .mark {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    margin-bottom: 36px;
+  }
 
-        .social-links {
-            display: flex;
-            justify-content: center;
-            gap: 15px;
-        }
+  .logo {
+    height: 24px;
+    width: auto;
+    flex-shrink: 0;
+  }
 
-        .social-links a {
-            color: #4a90e2;
-            text-decoration: none;
-            font-weight: 600;
-            transition: color 0.2s ease;
-        }
+  .brand-sub {
+    font-size: 13px;
+    color: var(--text-soft);
+    padding-left: 14px;
+    border-left: 1px solid var(--border);
+  }
 
-        .social-links a:hover {
-            color: #235a9f;
-        }
+  h1 {
+    font-size: 26px;
+    font-weight: 700;
+    line-height: 1.25;
+    margin: 0 0 8px;
+  }
 
-        footer {
-            margin-top: 40px;
-            font-size: 0.85rem;
-            color: #999999;
-        }
-    </style>
+  .intro {
+    font-size: 15px;
+    color: var(--text-soft);
+    line-height: 1.5;
+    margin: 0 0 32px;
+    max-width: 46ch;
+  }
+
+  form {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 28px;
+  }
+
+  .field {
+    margin-bottom: 22px;
+  }
+
+  .field:last-of-type {
+    margin-bottom: 0;
+  }
+
+  label {
+    display: block;
+    font-size: 14px;
+    font-weight: 600;
+    margin-bottom: 7px;
+  }
+
+  .hint {
+    font-size: 13px;
+    color: var(--text-soft);
+    margin: 4px 0 0;
+  }
+
+  input[type="text"],
+  textarea {
+    width: 100%;
+    font: inherit;
+    font-size: 15px;
+    padding: 11px 13px;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    background: var(--bg);
+    color: var(--text);
+  }
+
+  textarea {
+    resize: vertical;
+    min-height: 90px;
+    line-height: 1.5;
+  }
+
+  input[type="text"]:focus,
+  textarea:focus,
+  button:focus-visible,
+  input[type="radio"]:focus-visible + span,
+  .upload:focus-within {
+    outline: 2px solid var(--accent);
+    outline-offset: 2px;
+  }
+
+  .id-toggle {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 10px;
+  }
+
+  .id-toggle label {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 7px;
+    font-size: 14px;
+    font-weight: 500;
+    padding: 9px 10px;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    cursor: pointer;
+    margin-bottom: 0;
+    transition: border-color 0.15s ease, background 0.15s ease;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .id-toggle label { transition: none; }
+  }
+
+  .id-toggle input {
+    position: absolute;
+    opacity: 0;
+    width: 1px;
+    height: 1px;
+  }
+
+  .id-toggle input:checked + span {
+    color: var(--accent);
+  }
+
+  .id-toggle label:has(input:checked) {
+    border-color: var(--accent);
+    background: var(--accent-soft);
+  }
+
+  .upload {
+    border: 1px dashed var(--border);
+    border-radius: 8px;
+    padding: 18px;
+    text-align: center;
+    background: var(--bg);
+    cursor: pointer;
+  }
+
+  .upload input { display: none; }
+
+  .upload-label {
+    font-size: 14px;
+    color: var(--text-soft);
+  }
+
+  .upload-label strong {
+    color: var(--accent);
+    font-weight: 600;
+  }
+
+  .preview {
+    margin-top: 12px;
+  }
+
+  .preview img {
+    max-width: 100%;
+    max-height: 160px;
+    border-radius: 6px;
+    display: block;
+    margin: 0 auto;
+  }
+
+  .field-error {
+    font-size: 13px;
+    color: var(--error);
+    margin: 6px 0 0;
+    display: none;
+  }
+
+  .field.invalid .field-error {
+    display: block;
+  }
+
+  .field.invalid input,
+  .field.invalid textarea,
+  .field.invalid .upload {
+    border-color: var(--error);
+  }
+
+  button[type="submit"] {
+    width: 100%;
+    font: inherit;
+    font-size: 15px;
+    font-weight: 600;
+    color: #fff;
+    background: var(--accent);
+    border: none;
+    border-radius: 8px;
+    padding: 13px 20px;
+    margin-top: 28px;
+    cursor: pointer;
+  }
+
+  button[type="submit"]:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+  }
+
+  .result {
+    margin-top: 20px;
+    border-radius: var(--radius);
+    padding: 22px;
+    display: none;
+  }
+
+  .result.visible {
+    display: block;
+  }
+
+  .result-title {
+    font-size: 15px;
+    font-weight: 700;
+    margin: 0 0 8px;
+  }
+
+  .result-message {
+    font-size: 14px;
+    line-height: 1.55;
+    margin: 0;
+  }
+
+  .result.approved { background: var(--approved-bg); }
+  .result.approved .result-title { color: var(--approved); }
+  .result.offer { background: var(--offer-bg); }
+  .result.offer .result-title { color: var(--offer); }
+  .result.escalate { background: var(--escalate-bg); }
+  .result.escalate .result-title { color: var(--escalate); }
+  .result.error { background: var(--error-bg); }
+  .result.error .result-title { color: var(--error); }
+
+  .try-again {
+    display: inline-block;
+    margin-top: 14px;
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--accent);
+    background: none;
+    border: none;
+    padding: 0;
+    cursor: pointer;
+    text-decoration: underline;
+  }
+</style>
 </head>
 <body>
+<main>
 
-    <div class="container">
-        <!-- Replace with your branding -->
-        <div class="logo">MODO</div>
-        
-        <h1>Defective Return Request Form</h1>
-        <p>Coming Soon!</p>
-        
-        <footer>
-            &copy; 2026 Modo. All rights reserved.
-        </footer>
+  <div class="mark">
+    <img class="logo" src="assets/modo-logo.webp" alt="MODO">
+    <div class="brand-sub">Warranty Claims</div>
+  </div>
+
+  <h1>Submit a warranty claim</h1>
+  <p class="intro">Tell us about the defective frame and we'll let you know the outcome, usually within a minute.</p>
+
+  <form id="claim-form" novalidate>
+
+    <div class="field" id="field-account">
+      <label for="accountNumber">Account number</label>
+      <input type="text" id="accountNumber" name="accountNumber" autocomplete="off" required>
+      <p class="field-error">Enter your account number.</p>
     </div>
 
+    <div class="field" id="field-identifier">
+      <label id="identifier-label">Invoice number</label>
+      <div class="id-toggle" role="radiogroup" aria-labelledby="identifier-label">
+        <label>
+          <input type="radio" name="idType" value="invoice" checked>
+          <span>Invoice number</span>
+        </label>
+        <label>
+          <input type="radio" name="idType" value="po">
+          <span>PO number</span>
+        </label>
+      </div>
+      <input type="text" id="identifierValue" name="identifierValue" autocomplete="off" required>
+      <p class="field-error">Enter the invoice or PO number from your order.</p>
+    </div>
+
+    <div class="field" id="field-sku">
+      <label for="sku">Item SKU</label>
+      <input type="text" id="sku" name="sku" autocomplete="off" required>
+      <p class="hint">The item code printed on your packing slip, e.g. MS696SAGRN053.</p>
+      <p class="field-error">Enter the item SKU.</p>
+    </div>
+
+    <div class="field" id="field-description">
+      <label for="description">Brief description of issue</label>
+      <textarea id="description" name="description" required></textarea>
+      <p class="field-error">Briefly describe what's wrong with the frame.</p>
+    </div>
+
+    <div class="field" id="field-photo">
+      <label for="photo">Photo of the frame or clip</label>
+      <div class="upload" id="upload-zone" tabindex="0">
+        <input type="file" id="photo" name="photo" accept="image/*" required>
+        <div class="upload-label" id="upload-label"><strong>Choose a photo</strong> or drag one here</div>
+        <div class="preview" id="preview" hidden><img id="preview-img" alt="Selected photo preview"></div>
+      </div>
+      <p class="field-error">Add a photo of the frame or clip.</p>
+    </div>
+
+    <button type="submit" id="submit-btn">Submit claim</button>
+  </form>
+
+  <div class="result" id="result" role="status" aria-live="polite">
+    <p class="result-title" id="result-title"></p>
+    <p class="result-message" id="result-message"></p>
+    <button type="button" class="try-again" id="try-again">Submit another claim</button>
+  </div>
+
+</main>
+
+<script>
+(function () {
+  const form = document.getElementById('claim-form');
+  const submitBtn = document.getElementById('submit-btn');
+  const result = document.getElementById('result');
+  const resultTitle = document.getElementById('result-title');
+  const resultMessage = document.getElementById('result-message');
+  const tryAgainBtn = document.getElementById('try-again');
+  const identifierLabel = document.getElementById('identifier-label');
+  const identifierInput = document.getElementById('identifierValue');
+  const uploadZone = document.getElementById('upload-zone');
+  const photoInput = document.getElementById('photo');
+  const uploadLabel = document.getElementById('upload-label');
+  const preview = document.getElementById('preview');
+  const previewImg = document.getElementById('preview-img');
+
+  // Swap the identifier field's label depending on the toggle, keeping the form compact.
+  document.querySelectorAll('input[name="idType"]').forEach((radio) => {
+    radio.addEventListener('change', () => {
+      identifierLabel.textContent = radio.value === 'po' ? 'PO number' : 'Invoice number';
+    });
+  });
+
+  // Drag-and-drop support, plus click-to-browse via the hidden file input.
+  uploadZone.addEventListener('click', () => photoInput.click());
+  uploadZone.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter' || e.key === ' ') {
+      e.preventDefault();
+      photoInput.click();
+    }
+  });
+  ['dragover', 'dragleave', 'drop'].forEach((evt) => {
+    uploadZone.addEventListener(evt, (e) => e.preventDefault());
+  });
+  uploadZone.addEventListener('drop', (e) => {
+    if (e.dataTransfer.files.length) {
+      photoInput.files = e.dataTransfer.files;
+      handlePhotoSelected();
+    }
+  });
+  photoInput.addEventListener('change', handlePhotoSelected);
+
+  function handlePhotoSelected() {
+    const file = photoInput.files[0];
+    if (!file) return;
+    uploadLabel.textContent = file.name;
+    const reader = new FileReader();
+    reader.onload = () => {
+      previewImg.src = reader.result;
+      preview.hidden = false;
+    };
+    reader.readAsDataURL(file);
+  }
+
+  function fileToBase64(file) {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve(reader.result.split(',')[1] || '');
+      reader.onerror = reject;
+      reader.readAsDataURL(file);
+    });
+  }
+
+  function clearErrors() {
+    document.querySelectorAll('.field').forEach((f) => f.classList.remove('invalid'));
+  }
+
+  function markInvalid(fieldId) {
+    document.getElementById(fieldId).classList.add('invalid');
+  }
+
+  function validate() {
+    clearErrors();
+    let valid = true;
+
+    if (!document.getElementById('accountNumber').value.trim()) {
+      markInvalid('field-account');
+      valid = false;
+    }
+    if (!identifierInput.value.trim()) {
+      markInvalid('field-identifier');
+      valid = false;
+    }
+    if (!document.getElementById('sku').value.trim()) {
+      markInvalid('field-sku');
+      valid = false;
+    }
+    if (!document.getElementById('description').value.trim()) {
+      markInvalid('field-description');
+      valid = false;
+    }
+    if (!photoInput.files.length) {
+      markInvalid('field-photo');
+      valid = false;
+    }
+
+    return valid;
+  }
+
+  function showResult(outcome, title, message) {
+    result.className = 'result visible ' + outcome;
+    resultTitle.textContent = title;
+    resultMessage.textContent = message;
+    form.hidden = true;
+    result.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }
+
+  const OUTCOME_TITLES = {
+    approved: 'Claim approved',
+    offer: 'Replacement offer',
+    escalate: 'We need a closer look',
+  };
+
+  form.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    if (!validate()) {
+      document.querySelector('.field.invalid input, .field.invalid textarea')?.focus();
+      return;
+    }
+
+    submitBtn.disabled = true;
+    submitBtn.textContent = 'Submitting…';
+
+    const idType = document.querySelector('input[name="idType"]:checked').value;
+    const payload = {
+      accountNumber: document.getElementById('accountNumber').value.trim(),
+      sku: document.getElementById('sku').value.trim(),
+      description: document.getElementById('description').value.trim(),
+    };
+    if (idType === 'po') {
+      payload.poNumber = identifierInput.value.trim();
+    } else {
+      payload.invoiceNumber = identifierInput.value.trim();
+    }
+
+    try {
+      payload.photoBase64 = await fileToBase64(photoInput.files[0]);
+
+      const res = await fetch('/api/claims', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      });
+
+      const data = await res.json();
+
+      if (!res.ok) {
+        showResult('error', 'Something went wrong', data.error || 'Please try again or contact customer relations.');
+        return;
+      }
+
+      showResult(data.outcome, OUTCOME_TITLES[data.outcome] || 'Claim received', data.message);
+    } catch (err) {
+      showResult('error', 'Something went wrong', 'Please check your connection and try again, or contact customer relations.');
+    } finally {
+      submitBtn.disabled = false;
+      submitBtn.textContent = 'Submit claim';
+    }
+  });
+
+  tryAgainBtn.addEventListener('click', () => {
+    form.reset();
+    form.hidden = false;
+    result.classList.remove('visible');
+    uploadLabel.textContent = '';
+    uploadLabel.innerHTML = '<strong>Choose a photo</strong> or drag one here';
+    preview.hidden = true;
+    identifierLabel.textContent = 'Invoice number';
+    clearErrors();
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  });
+})();
+</script>
 </body>
 </html>

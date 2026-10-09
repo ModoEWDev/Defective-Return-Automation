@@ -1,0 +1,12 @@
+{
+  "IsEncrypted": false,
+  "Values": {
+    "AzureWebJobsStorage": "UseDevelopmentStorage=true",
+    "FUNCTIONS_WORKER_RUNTIME": "node",
+    "NETSUITE_ACCOUNT_ID": "",
+    "NETSUITE_CLIENT_ID": "",
+    "NETSUITE_CERTIFICATE_ID": "",
+    "NETSUITE_PRIVATE_KEY": "",
+    "ANTHROPIC_API_KEY": ""
+  }
+}

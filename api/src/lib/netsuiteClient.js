@@ -32,17 +32,31 @@ async function suiteQL(query) {
  * can't safely guess which one the claim is about.
  */
 async function findInvoice(accountNumber, { invoiceNumber, poNumber }) {
-  const identifierClause = invoiceNumber
-    ? `tranid = '${escapeSql(invoiceNumber)}'`
-    : `otherrefnum = '${escapeSql(poNumber)}'`;
+  let rows;
 
-  const rows = await suiteQL(`
-    SELECT id, tranid, trandate
-    FROM transaction
-    WHERE type = 'CustInvc'
-      AND ${identifierClause}
-      AND entity = (SELECT id FROM customer WHERE entityid = '${escapeSql(accountNumber)}')
-  `);
+  if (invoiceNumber) {
+    rows = await suiteQL(`
+      SELECT id, tranid, trandate
+      FROM transaction
+      WHERE type = 'CustInvc'
+        AND tranid = '${escapeSql(invoiceNumber)}'
+        AND entity = (SELECT id FROM customer WHERE entityid = '${escapeSql(accountNumber)}')
+    `);
+  } else {
+    // "PO number" here turns out to actually be the Sales Order's own
+    // transaction number — the invoice doesn't carry a separate PO
+    // reference field, it's linked back to the Sales Order it was
+    // created from via "createdfrom."
+    rows = await suiteQL(`
+      SELECT inv.id AS id, inv.tranid AS tranid, inv.trandate AS trandate
+      FROM transaction so
+      JOIN transaction inv ON inv.createdfrom = so.id
+      WHERE so.type = 'SalesOrd'
+        AND so.tranid = '${escapeSql(poNumber)}'
+        AND inv.type = 'CustInvc'
+        AND inv.entity = (SELECT id FROM customer WHERE entityid = '${escapeSql(accountNumber)}')
+    `);
+  }
 
   if (!rows.length) return null;
   if (rows.length > 1) return { ambiguous: true };

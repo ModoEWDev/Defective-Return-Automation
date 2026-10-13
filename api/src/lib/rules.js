@@ -105,6 +105,8 @@ async function evaluateClaim(claim, context) {
           details: {
             reason:
               'Could not confidently match the style/color described to a specific item on this invoice — needs a human to confirm which one.',
+            // TEMPORARY DEBUG — remove once field names are confirmed.
+            debugLineItems: lineItems,
           },
         };
       }

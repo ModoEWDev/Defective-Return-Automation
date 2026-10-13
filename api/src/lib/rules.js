@@ -88,7 +88,7 @@ async function evaluateClaim(claim, context) {
       .filter((t) => t.length > 1);
 
     const matches = lineItems.filter((item) => {
-      const haystack = `${item.description} ${item.sku}`.toLowerCase();
+      const haystack = `${item.style} ${item.color}`.toLowerCase();
       return tokens.length > 0 && tokens.every((t) => haystack.includes(t));
     });
 

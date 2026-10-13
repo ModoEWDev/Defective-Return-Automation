@@ -88,15 +88,15 @@ function fallbackMessage(result) {
  */
 async function matchItemWithClaude(lineItems, styleName, color, context) {
   const itemList = lineItems
-    .map((item, i) => `${i}: SKU "${item.sku}", description "${item.description}"`)
+    .map((item, i) => `${i}: style "${item.style}", color "${item.color}" (SKU "${item.sku}")`)
     .join('\n');
 
   const prompt =
     `A customer described a frame as style "${styleName || ''}" and color "${color || ''}". ` +
-    `Here are the items on their invoice:\n${itemList}\n\n` +
-    'Which one (if any) are they most likely describing? NetSuite data often abbreviates ' +
-    'colors (e.g. GRN for green, BLK for black) and may embed style numbers in the SKU ' +
-    "differently than a customer would type them. Respond with ONLY a JSON object, no other text: " +
+    `Here are the items on their invoice, with their actual recorded style and color:\n${itemList}\n\n` +
+    'Which one (if any) are they most likely describing? Account for minor typos, abbreviations, ' +
+    'or the customer giving only part of a multi-word color (e.g. "pink" for "Crystal Pink"). ' +
+    'Respond with ONLY a JSON object, no other text: ' +
     '{"matchIndex": <number or null>, "confidence": "high" | "medium" | "low"}. ' +
     'Only use "high" confidence if you are genuinely sure — this decision affects a real credit.';
 

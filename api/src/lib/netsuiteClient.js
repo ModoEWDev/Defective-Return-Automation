@@ -97,7 +97,12 @@ async function getUnitsCredited(accountNumber, sku) {
  */
 async function getInvoiceLineItems(invoiceId) {
   const rows = await suiteQL(`
-    SELECT tl.item AS iteminternalid, i.itemid AS sku, COALESCE(i.displayname, '') AS description
+    SELECT
+      tl.item AS iteminternalid,
+      i.itemid AS sku,
+      COALESCE(i.displayname, '') AS description,
+      COALESCE(tl.custcol_modo_item_style, '') AS style,
+      COALESCE(tl.custcol_modo_color, tl.custcol_sps_productcolorcode, '') AS color
     FROM transactionline tl
     JOIN item i ON i.id = tl.item
     WHERE tl.transaction = ${Number(invoiceId)}
@@ -108,6 +113,8 @@ async function getInvoiceLineItems(invoiceId) {
     itemInternalId: row.iteminternalid,
     sku: row.sku,
     description: row.description,
+    style: row.style,
+    color: row.color,
   }));
 }
 

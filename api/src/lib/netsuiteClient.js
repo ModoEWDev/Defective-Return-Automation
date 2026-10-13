@@ -49,16 +49,24 @@ async function findInvoice(accountNumber, { invoiceNumber, poNumber }) {
     // created from via "createdfrom."
     // The customer-facing "PO #" is NetSuite's own standard header-level
     // field on the Sales Order (otherrefnum) — not a custom field, and not
-    // on the invoice itself. Find the order by it, then follow to the
-    // invoice that order generated.
+    // on the invoice itself. Two separate queries rather than a self-join
+    // on "transaction" — joining that table to itself seems to trigger an
+    // internal engine error regardless of which field is being filtered on.
+    const [salesOrder] = await suiteQL(`
+      SELECT id
+      FROM transaction
+      WHERE type = 'SalesOrd'
+        AND otherrefnum = '${escapeSql(poNumber)}'
+        AND entity = (SELECT id FROM customer WHERE entityid = '${escapeSql(accountNumber)}')
+    `);
+
+    if (!salesOrder) return null;
+
     rows = await suiteQL(`
-      SELECT inv.id AS id, inv.tranid AS tranid, inv.trandate AS trandate
-      FROM transaction so
-      JOIN transaction inv ON inv.createdfrom = so.id
-      WHERE so.type = 'SalesOrd'
-        AND so.otherrefnum = '${escapeSql(poNumber)}'
-        AND inv.type = 'CustInvc'
-        AND inv.entity = (SELECT id FROM customer WHERE entityid = '${escapeSql(accountNumber)}')
+      SELECT id, tranid, trandate
+      FROM transaction
+      WHERE type = 'CustInvc'
+        AND createdfrom = ${Number(salesOrder.id)}
     `);
   }
 

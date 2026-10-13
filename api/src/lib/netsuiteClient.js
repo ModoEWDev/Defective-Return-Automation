@@ -24,60 +24,18 @@ async function suiteQL(query) {
 }
 
 /**
- * Looks up the invoice by whichever identifier the customer actually gave —
- * their invoice number, or their PO number (NetSuite's "otherrefnum" field,
- * the standard place a customer's own purchase order reference is stored
- * on a transaction). Returns null if nothing matches, or an object with
- * ambiguous: true if a PO number matches more than one invoice, since we
- * can't safely guess which one the claim is about.
+ * Looks up a single invoice directly by its own number. Returns null if
+ * nothing matches, or { ambiguous: true } in the (unexpected) case of more
+ * than one invoice sharing a number on the same account.
  */
-async function findInvoice(accountNumber, { invoiceNumber, poNumber }) {
-  let rows;
-
-  if (invoiceNumber) {
-    rows = await suiteQL(`
-      SELECT id, tranid, trandate
-      FROM transaction
-      WHERE type = 'CustInvc'
-        AND tranid = '${escapeSql(invoiceNumber)}'
-        AND entity = (SELECT id FROM customer WHERE entityid = '${escapeSql(accountNumber)}')
-    `);
-  } else {
-    // "PO number" here turns out to actually be the Sales Order's own
-    // transaction number — the invoice doesn't carry a separate PO
-    // reference field, it's linked back to the Sales Order it was
-    // created from via "createdfrom."
-    // The customer-facing "PO #" is NetSuite's own standard header-level
-    // field on the Sales Order (otherrefnum) — not a custom field, and not
-    // on the invoice itself. Two separate queries rather than a self-join
-    // on "transaction" — joining that table to itself seems to trigger an
-    // internal engine error regardless of which field is being filtered on.
-    const [salesOrder] = await suiteQL(`
-      SELECT id
-      FROM transaction
-      WHERE type = 'SalesOrd'
-        AND otherrefnum = '${escapeSql(poNumber)}'
-        AND entity = (SELECT id FROM customer WHERE entityid = '${escapeSql(accountNumber)}')
-    `);
-
-    if (!salesOrder) return null;
-
-    // createdfrom isn't a real queryable column on "transaction" — NetSuite
-    // tracks this relationship through a dedicated linking table instead.
-    // linkType must be filtered to 'OrdBill' specifically — the same
-    // invoice can appear under more than one link type (e.g. 'OrdRvCom'),
-    // which would otherwise produce duplicate rows and falsely trigger the
-    // "more than one match" ambiguous-escalate path even for an order with
-    // genuinely only one invoice.
-    rows = await suiteQL(`
-      SELECT t.id, t.tranid, t.trandate
-      FROM previoustransactionlink pt
-      JOIN transaction t ON t.id = pt.nextdoc
-      WHERE pt.previousdoc = ${Number(salesOrder.id)}
-        AND pt.linktype = 'OrdBill'
-        AND t.type = 'CustInvc'
-    `);
-  }
+async function findInvoiceByNumber(accountNumber, invoiceNumber) {
+  const rows = await suiteQL(`
+    SELECT id, tranid, trandate
+    FROM transaction
+    WHERE type = 'CustInvc'
+      AND tranid = '${escapeSql(invoiceNumber)}'
+      AND entity = (SELECT id FROM customer WHERE entityid = '${escapeSql(accountNumber)}')
+  `);
 
   if (!rows.length) return null;
   if (rows.length > 1) return { ambiguous: true };
@@ -87,6 +45,45 @@ async function findInvoice(accountNumber, { invoiceNumber, poNumber }) {
     tranid: rows[0].tranid,
     trandate: new Date(rows[0].trandate),
   };
+}
+
+/**
+ * Looks up every invoice tied to a PO number. "PO number" here is actually
+ * the Sales Order's own header-level field (otherrefnum), not something
+ * stored on the invoice directly. A single Sales Order can be billed as
+ * more than one invoice (split shipments are a normal, common pattern here)
+ * — so unlike an invoice-number lookup, this deliberately returns all of
+ * them rather than treating more than one as ambiguous; the caller
+ * disambiguates further using the item being claimed.
+ */
+async function findInvoicesForPO(accountNumber, poNumber) {
+  const [salesOrder] = await suiteQL(`
+    SELECT id
+    FROM transaction
+    WHERE type = 'SalesOrd'
+      AND otherrefnum = '${escapeSql(poNumber)}'
+      AND entity = (SELECT id FROM customer WHERE entityid = '${escapeSql(accountNumber)}')
+  `);
+
+  if (!salesOrder) return [];
+
+  // linkType must be filtered to 'OrdBill' specifically — the same invoice
+  // can appear under more than one link type (e.g. 'OrdRvCom'), which would
+  // otherwise produce duplicate rows for the same real invoice.
+  const rows = await suiteQL(`
+    SELECT t.id, t.tranid, t.trandate
+    FROM previoustransactionlink pt
+    JOIN transaction t ON t.id = pt.nextdoc
+    WHERE pt.previousdoc = ${Number(salesOrder.id)}
+      AND pt.linktype = 'OrdBill'
+      AND t.type = 'CustInvc'
+  `);
+
+  return rows.map((row) => ({
+    id: row.id,
+    tranid: row.tranid,
+    trandate: new Date(row.trandate),
+  }));
 }
 
 async function getSalesRep(accountNumber) {
@@ -237,7 +234,8 @@ function escapeSql(value) {
 }
 
 module.exports = {
-  findInvoice,
+  findInvoiceByNumber,
+  findInvoicesForPO,
   getInvoiceLineItems,
   getSalesRep,
   getUnitsPurchased,

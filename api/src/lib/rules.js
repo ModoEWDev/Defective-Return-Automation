@@ -1,5 +1,6 @@
 const {
-  findInvoice,
+  findInvoiceByNumber,
+  findInvoicesForPO,
   getInvoiceLineItems,
   getSalesRep,
   getUnitsPurchased,
@@ -39,55 +40,71 @@ async function evaluateClaim(claim, context) {
     };
   }
 
-  // Gate 3 — locate the invoice (by invoice number or PO number, whichever
-  // was given) and compute the real warranty window. Deliberately uses
-  // NetSuite's own invoice date, never a customer-supplied one.
-  const invoice = await findInvoice(accountNumber, { invoiceNumber, poNumber });
+  // Gate 3 — locate candidate invoice(s). An invoice number always points
+  // to exactly one invoice. A PO number, though, can legitimately cover
+  // more than one invoice — split shipments are a normal, common pattern
+  // here — so rather than treating that as ambiguous, gather every item
+  // across all of them and let the style/color the customer gave pick out
+  // the specific one, the same way it would within a single invoice.
+  let candidateInvoices;
 
-  if (!invoice) {
+  if (invoiceNumber) {
+    const invoice = await findInvoiceByNumber(accountNumber, invoiceNumber);
+    if (!invoice) {
+      return {
+        outcome: 'escalate',
+        details: { reason: 'Could not locate an invoice matching the number provided.' },
+      };
+    }
+    if (invoice.ambiguous) {
+      return {
+        outcome: 'escalate',
+        details: { reason: 'More than one invoice shares this number — needs a human to confirm which one.' },
+      };
+    }
+    candidateInvoices = [invoice];
+  } else {
+    candidateInvoices = await findInvoicesForPO(accountNumber, poNumber);
+    if (!candidateInvoices.length) {
+      return {
+        outcome: 'escalate',
+        details: { reason: 'Could not locate an invoice matching the number provided.' },
+      };
+    }
+  }
+
+  // Gather every line item across all candidate invoices, each tagged with
+  // which invoice it actually belongs to, so whichever one matches carries
+  // its own correct invoice/date with it.
+  const itemLists = await Promise.all(
+    candidateInvoices.map(async (invoice) => {
+      const items = await getInvoiceLineItems(invoice.id);
+      return items.map((item) => ({ ...item, invoice }));
+    })
+  );
+  const allItems = itemLists.flat();
+
+  if (!allItems.length) {
     return {
       outcome: 'escalate',
-      details: { reason: 'Could not locate an invoice matching the number provided.' },
+      details: { reason: 'Could not find any items on the invoice(s) for this claim.' },
     };
   }
 
-  if (invoice.ambiguous) {
-    return {
-      outcome: 'escalate',
-      details: {
-        reason: 'More than one invoice matches this PO number — needs a human to pick the right one.',
-      },
-    };
-  }
-
-  const monthsSincePurchase = monthsBetween(invoice.trandate, new Date());
-
-  // Resolve which specific item on the invoice this claim is about. If the
-  // invoice only has one line item, that's unambiguously the one — no
-  // matching needed, and whatever the customer typed for style/color is
-  // irrelevant. Otherwise, match on whatever words of style name + color
-  // actually appear in that item's description or code; escalate rather
-  // than guess if nothing matches, or if more than one item does.
-  const lineItems = await getInvoiceLineItems(invoice.id);
-
-  if (!lineItems.length) {
-    return {
-      outcome: 'escalate',
-      details: { reason: 'Could not find any items on this invoice.' },
-    };
-  }
-
+  // If there's only one item total — whether that's one invoice with one
+  // line, or several invoices that together only ever produced one item —
+  // that's unambiguously the one, no matching needed.
   let resolvedItem;
 
-  if (lineItems.length === 1) {
-    resolvedItem = lineItems[0];
+  if (allItems.length === 1) {
+    resolvedItem = allItems[0];
   } else {
     const tokens = `${styleName || ''} ${color || ''}`
       .toLowerCase()
       .split(/\s+/)
       .filter((t) => t.length > 1);
 
-    const matches = lineItems.filter((item) => {
+    const matches = allItems.filter((item) => {
       const haystack = `${item.style} ${item.color}`.toLowerCase();
       return tokens.length > 0 && tokens.every((t) => haystack.includes(t));
     });
@@ -97,20 +114,22 @@ async function evaluateClaim(claim, context) {
     } else {
       // Zero or multiple literal matches — let Claude use judgment on
       // abbreviations/informal naming before giving up and escalating.
-      resolvedItem = await matchItemWithClaude(lineItems, styleName, color, context);
+      resolvedItem = await matchItemWithClaude(allItems, styleName, color, context);
 
       if (!resolvedItem) {
         return {
           outcome: 'escalate',
           details: {
             reason:
-              'Could not confidently match the style/color described to a specific item on this invoice — needs a human to confirm which one.',
+              'Could not confidently match the style/color described to a specific item — needs a human to confirm which one.',
           },
         };
       }
     }
   }
 
+  const invoice = resolvedItem.invoice;
+  const monthsSincePurchase = monthsBetween(invoice.trandate, new Date());
   const sku = resolvedItem.sku;
 
   // Gate 4 — duplicate/volume gate: credited units must stay below purchased units.

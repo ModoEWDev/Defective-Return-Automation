@@ -78,4 +78,63 @@ function fallbackMessage(result) {
   }
 }
 
-module.exports = { draftCustomerMessage };
+/**
+ * Fallback for when literal substring matching finds zero or multiple
+ * candidates. Real NetSuite data often abbreviates colors (GRN for green)
+ * or embeds style numbers differently than a customer would type them, so
+ * this asks Claude to use judgment on the same small, already-valid set of
+ * line items — not an open-ended guess. Only returns a match when Claude is
+ * confident; anything else should still escalate, same as before.
+ */
+async function matchItemWithClaude(lineItems, styleName, color, context) {
+  const itemList = lineItems
+    .map((item, i) => `${i}: SKU "${item.sku}", description "${item.description}"`)
+    .join('\n');
+
+  const prompt =
+    `A customer described a frame as style "${styleName || ''}" and color "${color || ''}". ` +
+    `Here are the items on their invoice:\n${itemList}\n\n` +
+    'Which one (if any) are they most likely describing? NetSuite data often abbreviates ' +
+    'colors (e.g. GRN for green, BLK for black) and may embed style numbers in the SKU ' +
+    "differently than a customer would type them. Respond with ONLY a JSON object, no other text: " +
+    '{"matchIndex": <number or null>, "confidence": "high" | "medium" | "low"}. ' +
+    'Only use "high" confidence if you are genuinely sure — this decision affects a real credit.';
+
+  try {
+    const response = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: {
+        'x-api-key': ANTHROPIC_API_KEY,
+        'anthropic-version': '2023-06-01',
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        model: MODEL,
+        max_tokens: 100,
+        messages: [{ role: 'user', content: prompt }],
+      }),
+    });
+
+    if (!response.ok) throw new Error(`Claude API error: ${response.status}`);
+
+    const data = await response.json();
+    const text = data.content
+      .filter((block) => block.type === 'text')
+      .map((block) => block.text)
+      .join('')
+      .trim();
+
+    const parsed = JSON.parse(text);
+    if (parsed.confidence === 'high' && typeof parsed.matchIndex === 'number') {
+      return lineItems[parsed.matchIndex] || null;
+    }
+    return null;
+  } catch (err) {
+    // If this fails for any reason (bad JSON back, network issue), treat it
+    // the same as "no confident match" — escalate rather than guess.
+    context.error('matchItemWithClaude failed, treating as no match', err);
+    return null;
+  }
+}
+
+module.exports = { draftCustomerMessage, matchItemWithClaude };

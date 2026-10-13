@@ -7,6 +7,7 @@ const {
   createCreditMemo,
 } = require('./netsuiteClient');
 const { getClaimCountToday, recordClaimSubmission } = require('./claimTracking');
+const { matchItemWithClaude } = require('./claude');
 
 const WARRANTY_MONTHS = 30; // 2-year warranty + 6-month grace period
 const KATHRYN_LAND_REP_ID = '396';
@@ -91,27 +92,23 @@ async function evaluateClaim(claim, context) {
       return tokens.length > 0 && tokens.every((t) => haystack.includes(t));
     });
 
-    if (matches.length === 0) {
-      return {
-        outcome: 'escalate',
-        details: {
-          reason:
-            'This invoice has more than one item, and the style/color described did not match any of them — needs a human to confirm which item the claim is about.',
-        },
-      };
-    }
+    if (matches.length === 1) {
+      resolvedItem = matches[0];
+    } else {
+      // Zero or multiple literal matches — let Claude use judgment on
+      // abbreviations/informal naming before giving up and escalating.
+      resolvedItem = await matchItemWithClaude(lineItems, styleName, color, context);
 
-    if (matches.length > 1) {
-      return {
-        outcome: 'escalate',
-        details: {
-          reason:
-            'More than one item on this invoice matches the style/color described — needs a human to confirm which one.',
-        },
-      };
+      if (!resolvedItem) {
+        return {
+          outcome: 'escalate',
+          details: {
+            reason:
+              'Could not confidently match the style/color described to a specific item on this invoice — needs a human to confirm which one.',
+          },
+        };
+      }
     }
-
-    resolvedItem = matches[0];
   }
 
   const sku = resolvedItem.sku;

@@ -58,7 +58,7 @@ async function findInvoice(accountNumber, { invoiceNumber, poNumber }) {
       JOIN transaction so ON so.id = tl.transaction
       JOIN transaction inv ON inv.createdfrom = so.id
       WHERE so.type = 'SalesOrd'
-        AND tl.custcol_sps_linesequencenumber = '${escapeSql(poNumber)}'
+        AND tl.custcol_sps_linesequencenumber = ${Number(poNumber)}
         AND inv.type = 'CustInvc'
         AND inv.entity = (SELECT id FROM customer WHERE entityid = '${escapeSql(accountNumber)}')
     `);

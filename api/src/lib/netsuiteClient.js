@@ -62,11 +62,14 @@ async function findInvoice(accountNumber, { invoiceNumber, poNumber }) {
 
     if (!salesOrder) return null;
 
+    // createdfrom isn't a real queryable column on "transaction" — NetSuite
+    // tracks this relationship through a dedicated linking table instead.
     rows = await suiteQL(`
-      SELECT id, tranid, trandate
-      FROM transaction
-      WHERE type = 'CustInvc'
-        AND createdfrom = ${Number(salesOrder.id)}
+      SELECT t.id, t.tranid, t.trandate
+      FROM previoustransactionlink pt
+      JOIN transaction t ON t.id = pt.nextdoc
+      WHERE pt.previousdoc = ${Number(salesOrder.id)}
+        AND t.type = 'CustInvc'
     `);
   }
 

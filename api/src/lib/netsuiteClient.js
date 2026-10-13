@@ -64,11 +64,17 @@ async function findInvoice(accountNumber, { invoiceNumber, poNumber }) {
 
     // createdfrom isn't a real queryable column on "transaction" — NetSuite
     // tracks this relationship through a dedicated linking table instead.
+    // linkType must be filtered to 'OrdBill' specifically — the same
+    // invoice can appear under more than one link type (e.g. 'OrdRvCom'),
+    // which would otherwise produce duplicate rows and falsely trigger the
+    // "more than one match" ambiguous-escalate path even for an order with
+    // genuinely only one invoice.
     rows = await suiteQL(`
       SELECT t.id, t.tranid, t.trandate
       FROM previoustransactionlink pt
       JOIN transaction t ON t.id = pt.nextdoc
       WHERE pt.previousdoc = ${Number(salesOrder.id)}
+        AND pt.linktype = 'OrdBill'
         AND t.type = 'CustInvc'
     `);
   }

@@ -47,18 +47,16 @@ async function findInvoice(accountNumber, { invoiceNumber, poNumber }) {
     // transaction number — the invoice doesn't carry a separate PO
     // reference field, it's linked back to the Sales Order it was
     // created from via "createdfrom."
-    // The customer-facing "PO #" lives on the Sales Order's line items
-    // (custcol_sps_linesequencenumber), consistently across all lines of
-    // one order — not a header-level field, and not the order's own
-    // number. Find it via any matching line, then follow to the invoice
-    // that order generated.
+    // The customer-facing "PO #" is NetSuite's own standard header-level
+    // field on the Sales Order (otherrefnum) — not a custom field, and not
+    // on the invoice itself. Find the order by it, then follow to the
+    // invoice that order generated.
     rows = await suiteQL(`
       SELECT inv.id AS id, inv.tranid AS tranid, inv.trandate AS trandate
-      FROM transactionline tl
-      JOIN transaction so ON so.id = tl.transaction
+      FROM transaction so
       JOIN transaction inv ON inv.createdfrom = so.id
       WHERE so.type = 'SalesOrd'
-        AND tl.custcol_sps_linesequencenumber = ${Number(poNumber)}
+        AND so.otherrefnum = '${escapeSql(poNumber)}'
         AND inv.type = 'CustInvc'
         AND inv.entity = (SELECT id FROM customer WHERE entityid = '${escapeSql(accountNumber)}')
     `);

@@ -22,8 +22,11 @@ async function evaluateClaim(claim, context) {
   const claimsToday = await getClaimCountToday(accountNumber);
   if (claimsToday >= MAX_CLAIMS_PER_DAY) {
     return {
-      outcome: 'escalate',
-      details: { reason: 'Account has already submitted the maximum warranty claims allowed today.' },
+      outcome: 'invalid',
+      details: {
+        reason:
+          'This account has already submitted the maximum number of warranty claims allowed today. Please try again tomorrow, or contact your sales representative if you need to submit more right away.',
+      },
     };
   }
 
@@ -35,8 +38,11 @@ async function evaluateClaim(claim, context) {
   const salesRep = await getSalesRep(accountNumber);
   if (salesRep === KATHRYN_LAND_REP_ID) {
     return {
-      outcome: 'escalate',
-      details: { reason: 'Account is managed by a sales rep who handles claims directly.' },
+      outcome: 'invalid',
+      details: {
+        reason:
+          'This account is managed by a sales representative. Please reach out to your sales representative directly to submit this claim.',
+      },
     };
   }
 
@@ -52,11 +58,13 @@ async function evaluateClaim(claim, context) {
     const invoice = await findInvoiceByNumber(accountNumber, invoiceNumber);
     if (!invoice) {
       return {
-        outcome: 'escalate',
-        details: { reason: 'Could not locate an invoice matching the number provided.' },
+        outcome: 'invalid',
+        details: { reason: "The invoice number can't be found on your account. Please double-check it and submit the claim again." },
       };
     }
     if (invoice.ambiguous) {
+      // A data-integrity oddity, not something the customer did wrong —
+      // a different invoice number typed correctly won't fix this.
       return {
         outcome: 'escalate',
         details: { reason: 'More than one invoice shares this number — needs a human to confirm which one.' },
@@ -67,8 +75,8 @@ async function evaluateClaim(claim, context) {
     candidateInvoices = await findInvoicesForPO(accountNumber, poNumber);
     if (!candidateInvoices.length) {
       return {
-        outcome: 'escalate',
-        details: { reason: 'Could not locate an invoice matching the number provided.' },
+        outcome: 'invalid',
+        details: { reason: "The PO number can't be found on your account. Please double-check it and submit the claim again." },
       };
     }
   }
@@ -118,11 +126,8 @@ async function evaluateClaim(claim, context) {
 
       if (!resolvedItem) {
         return {
-          outcome: 'escalate',
-          details: {
-            reason:
-              'Could not confidently match the style/color described to a specific item — needs a human to confirm which one.',
-          },
+          outcome: 'invalid',
+          details: { reason: "The style/color entered can't be found on this invoice. Please double-check it and submit the claim again." },
         };
       }
     }
@@ -140,8 +145,8 @@ async function evaluateClaim(claim, context) {
 
   if (credited >= purchased) {
     return {
-      outcome: 'escalate',
-      details: { reason: 'This item appears to already be fully credited on this account.' },
+      outcome: 'invalid',
+      details: { reason: 'This item has already been credited on this account, so this claim can\'t be processed.' },
     };
   }
 

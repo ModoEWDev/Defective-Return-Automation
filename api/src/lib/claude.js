@@ -57,6 +57,11 @@ function buildPrompt(result) {
         `${base}\n\nThis claim needs a quick look from the team before a decision can be made. Let ` +
         'them know someone will follow up, without saying why or giving a timeframe beyond "shortly."'
       );
+    case 'invalid':
+      return (
+        `${base}\n\nTell them exactly this, rephrased naturally: "${result.details.reason}" ` +
+        'Do not mention escalation, a team, or anyone following up — just restate this plainly.'
+      );
     default:
       return `${base}\n\nSomething went wrong processing this claim. Ask them to contact customer relations directly.`;
   }
@@ -73,6 +78,8 @@ function fallbackMessage(result) {
       );
     case 'escalate':
       return 'Thanks for submitting your claim — our team needs to take a closer look, and someone will follow up with you shortly.';
+    case 'invalid':
+      return result.details.reason;
     default:
       return 'We ran into an issue processing your claim. Please contact customer relations for help.';
   }

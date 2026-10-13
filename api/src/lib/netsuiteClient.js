@@ -95,27 +95,42 @@ async function getUnitsCredited(accountNumber, sku) {
  * description — used to match a customer's "style name + color" description
  * against an actual item when an invoice has more than one line.
  */
+/**
+ * Fetches line items directly from the invoice record (not via SuiteQL
+ * search). custcol_modo_item_style isn't flagged as available for the
+ * Search channel, which makes it invisible to SuiteQL — but reading the
+ * record directly uses a different access path that isn't bound by that
+ * same restriction.
+ *
+ * NOTE: this was built without the ability to test the exact shape NetSuite
+ * returns for custom column fields on an expanded sublist — the field
+ * paths below (line.custcol_modo_item_style, etc.) are the standard pattern,
+ * but may need adjusting once tried against a real invoice.
+ */
 async function getInvoiceLineItems(invoiceId) {
-  const rows = await suiteQL(`
-    SELECT
-      tl.item AS iteminternalid,
-      i.itemid AS sku,
-      COALESCE(i.displayname, '') AS description,
-      COALESCE(tl.custcol_modo_item_style, '') AS style,
-      COALESCE(tl.custcol_modo_color, tl.custcol_sps_productcolorcode, '') AS color
-    FROM transactionline tl
-    JOIN item i ON i.id = tl.item
-    WHERE tl.transaction = ${Number(invoiceId)}
-      AND tl.mainline = 'F'
-  `);
+  const token = await getAccessToken();
+  const response = await fetch(
+    `${BASE_URL}/services/rest/record/v1/invoice/${invoiceId}?expandSubResources=true`,
+    { headers: { Authorization: `Bearer ${token}` } }
+  );
 
-  return rows.map((row) => ({
-    itemInternalId: row.iteminternalid,
-    sku: row.sku,
-    description: row.description,
-    style: row.style,
-    color: row.color,
-  }));
+  if (!response.ok) {
+    const text = await response.text();
+    throw new Error(`Invoice record fetch failed (${response.status}): ${text}`);
+  }
+
+  const data = await response.json();
+  const lines = data.item?.items || [];
+
+  return lines
+    .filter((line) => line.item && line.item.id)
+    .map((line) => ({
+      itemInternalId: line.item.id,
+      sku: line.item.refName || '',
+      description: '',
+      style: line.custcol_modo_item_style || '',
+      color: line.custcol_modo_color || line.custcol_sps_productcolorcode || '',
+    }));
 }
 
 /**

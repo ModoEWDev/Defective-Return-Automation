@@ -1,5 +1,6 @@
 const {
   findInvoice,
+  getInvoiceLineItems,
   getSalesRep,
   getUnitsPurchased,
   getUnitsCredited,
@@ -12,7 +13,7 @@ const KATHRYN_LAND_REP_ID = '396';
 const MAX_CLAIMS_PER_DAY = 3;
 
 async function evaluateClaim(claim, context) {
-  const { invoiceNumber, poNumber, accountNumber, sku } = claim;
+  const { invoiceNumber, poNumber, accountNumber, styleName, color } = claim;
 
   // Gate 1 — daily claim limit. Checked before anything else so a capped
   // account doesn't consume a NetSuite lookup for nothing.
@@ -60,6 +61,61 @@ async function evaluateClaim(claim, context) {
 
   const monthsSincePurchase = monthsBetween(invoice.trandate, new Date());
 
+  // Resolve which specific item on the invoice this claim is about. If the
+  // invoice only has one line item, that's unambiguously the one — no
+  // matching needed, and whatever the customer typed for style/color is
+  // irrelevant. Otherwise, match on whatever words of style name + color
+  // actually appear in that item's description or code; escalate rather
+  // than guess if nothing matches, or if more than one item does.
+  const lineItems = await getInvoiceLineItems(invoice.id);
+
+  if (!lineItems.length) {
+    return {
+      outcome: 'escalate',
+      details: { reason: 'Could not find any items on this invoice.' },
+    };
+  }
+
+  let resolvedItem;
+
+  if (lineItems.length === 1) {
+    resolvedItem = lineItems[0];
+  } else {
+    const tokens = `${styleName || ''} ${color || ''}`
+      .toLowerCase()
+      .split(/\s+/)
+      .filter((t) => t.length > 1);
+
+    const matches = lineItems.filter((item) => {
+      const haystack = `${item.description} ${item.sku}`.toLowerCase();
+      return tokens.length > 0 && tokens.every((t) => haystack.includes(t));
+    });
+
+    if (matches.length === 0) {
+      return {
+        outcome: 'escalate',
+        details: {
+          reason:
+            'This invoice has more than one item, and the style/color described did not match any of them — needs a human to confirm which item the claim is about.',
+        },
+      };
+    }
+
+    if (matches.length > 1) {
+      return {
+        outcome: 'escalate',
+        details: {
+          reason:
+            'More than one item on this invoice matches the style/color described — needs a human to confirm which one.',
+        },
+      };
+    }
+
+    resolvedItem = matches[0];
+  }
+
+  const sku = resolvedItem.sku;
+
   // Gate 4 — duplicate/volume gate: credited units must stay below purchased units.
   const [purchased, credited] = await Promise.all([
     getUnitsPurchased(accountNumber, sku),
@@ -85,7 +141,11 @@ async function evaluateClaim(claim, context) {
   }
 
   // All gates clear — post the credit.
-  const creditMemo = await createCreditMemo({ invoiceId: invoice.id, accountNumber, sku });
+  const creditMemo = await createCreditMemo({
+    invoiceId: invoice.id,
+    accountNumber,
+    itemInternalId: resolvedItem.itemInternalId,
+  });
 
   return {
     outcome: 'approved',

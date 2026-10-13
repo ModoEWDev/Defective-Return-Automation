@@ -90,6 +90,28 @@ async function getUnitsCredited(accountNumber, sku) {
 }
 
 /**
+ * Returns the item lines on a given invoice (excluding the transaction's own
+ * summary/header line), each with its internal ID, SKU code, and
+ * description — used to match a customer's "style name + color" description
+ * against an actual item when an invoice has more than one line.
+ */
+async function getInvoiceLineItems(invoiceId) {
+  const rows = await suiteQL(`
+    SELECT tl.item AS iteminternalid, i.itemid AS sku, COALESCE(i.displayname, '') AS description
+    FROM transactionline tl
+    JOIN item i ON i.id = tl.item
+    WHERE tl.transaction = ${Number(invoiceId)}
+      AND tl.mainline = 'F'
+  `);
+
+  return rows.map((row) => ({
+    itemInternalId: row.iteminternalid,
+    sku: row.sku,
+    description: row.description,
+  }));
+}
+
+/**
  * Creates the credit memo tied to the original invoice and customer.
  *
  * IMPORTANT — this payload shape is a reasonable starting point for NetSuite's
@@ -101,20 +123,15 @@ async function getUnitsCredited(accountNumber, sku) {
  *   - Test it against the sandbox account first, on a real invoice/SKU pair,
  *     and check the resulting credit memo in the NetSuite UI before trusting it.
  */
-async function createCreditMemo({ invoiceId, accountNumber, sku }) {
+async function createCreditMemo({ invoiceId, accountNumber, itemInternalId }) {
   const token = await getAccessToken();
 
-  const [itemRow] = await suiteQL(`
-    SELECT id FROM item WHERE itemid = '${escapeSql(sku)}'
-  `);
   const [customerRow] = await suiteQL(`
     SELECT id FROM customer WHERE entityid = '${escapeSql(accountNumber)}'
   `);
 
-  if (!itemRow || !customerRow) {
-    throw new Error(
-      'Could not resolve item or customer internal IDs for credit memo creation.'
-    );
+  if (!customerRow) {
+    throw new Error('Could not resolve customer internal ID for credit memo creation.');
   }
 
   const payload = {
@@ -123,7 +140,7 @@ async function createCreditMemo({ invoiceId, accountNumber, sku }) {
     item: {
       items: [
         {
-          item: { id: itemRow.id },
+          item: { id: itemInternalId },
           quantity: 1,
         },
       ],
@@ -157,6 +174,7 @@ function escapeSql(value) {
 
 module.exports = {
   findInvoice,
+  getInvoiceLineItems,
   getSalesRep,
   getUnitsPurchased,
   getUnitsCredited,

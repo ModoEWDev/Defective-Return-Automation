@@ -84,7 +84,7 @@
     color: var(--text-soft);
     line-height: 1.5;
     margin: 0 0 32px;
-    max-width: 46ch;
+    max-width: 48ch;
   }
 
   form {
@@ -96,10 +96,6 @@
 
   .field {
     margin-bottom: 22px;
-  }
-
-  .field:last-of-type {
-    margin-bottom: 0;
   }
 
   label {
@@ -136,7 +132,6 @@
   input[type="text"]:focus,
   textarea:focus,
   button:focus-visible,
-  input[type="radio"]:focus-visible + span,
   .upload:focus-within {
     outline: 2px solid var(--accent);
     outline-offset: 2px;
@@ -182,6 +177,80 @@
   .id-toggle label:has(input:checked) {
     border-color: var(--accent);
     background: var(--accent-soft);
+  }
+
+  .claim-item {
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 20px;
+    margin-bottom: 16px;
+    position: relative;
+  }
+
+  .claim-item-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 16px;
+  }
+
+  .claim-item-title {
+    font-size: 13px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: var(--text-soft);
+  }
+
+  .remove-claim {
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--error);
+    background: none;
+    border: none;
+    padding: 0;
+    cursor: pointer;
+    text-decoration: underline;
+  }
+
+  .style-color-row {
+    display: flex;
+    gap: 12px;
+  }
+
+  .style-color-row .field {
+    flex: 1;
+    margin-bottom: 0;
+  }
+
+  .claim-item .field:last-child {
+    margin-bottom: 0;
+  }
+
+  .claim-item .field {
+    margin-bottom: 16px;
+  }
+
+  .add-claim {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--accent);
+    background: none;
+    border: 1px dashed var(--border);
+    border-radius: 8px;
+    padding: 12px;
+    width: 100%;
+    cursor: pointer;
+    margin-bottom: 28px;
+    justify-content: center;
+  }
+
+  .add-claim-icon {
+    font-size: 17px;
+    line-height: 1;
   }
 
   .upload {
@@ -244,7 +313,7 @@
     border: none;
     border-radius: 8px;
     padding: 13px 20px;
-    margin-top: 28px;
+    margin-top: 6px;
     cursor: pointer;
   }
 
@@ -253,15 +322,32 @@
     cursor: not-allowed;
   }
 
-  .result {
+  .results {
     margin-top: 20px;
-    border-radius: var(--radius);
-    padding: 22px;
     display: none;
   }
 
-  .result.visible {
+  .results.visible {
     display: block;
+  }
+
+  .result-card {
+    border-radius: var(--radius);
+    padding: 22px;
+    margin-bottom: 14px;
+  }
+
+  .result-card:last-child {
+    margin-bottom: 0;
+  }
+
+  .result-identifier {
+    font-size: 12px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    opacity: 0.75;
+    margin: 0 0 6px;
   }
 
   .result-title {
@@ -276,18 +362,18 @@
     margin: 0;
   }
 
-  .result.approved { background: var(--approved-bg); }
-  .result.approved .result-title { color: var(--approved); }
-  .result.offer { background: var(--offer-bg); }
-  .result.offer .result-title { color: var(--offer); }
-  .result.escalate { background: var(--escalate-bg); }
-  .result.escalate .result-title { color: var(--escalate); }
-  .result.error { background: var(--error-bg); }
-  .result.error .result-title { color: var(--error); }
+  .result-card.approved { background: var(--approved-bg); }
+  .result-card.approved .result-title { color: var(--approved); }
+  .result-card.offer { background: var(--offer-bg); }
+  .result-card.offer .result-title { color: var(--offer); }
+  .result-card.escalate { background: var(--escalate-bg); }
+  .result-card.escalate .result-title { color: var(--escalate); }
+  .result-card.error { background: var(--error-bg); }
+  .result-card.error .result-title { color: var(--error); }
 
   .try-again {
     display: inline-block;
-    margin-top: 14px;
+    margin-top: 6px;
     font-size: 14px;
     font-weight: 600;
     color: var(--accent);
@@ -308,7 +394,7 @@
   </div>
 
   <h1>Submit a warranty claim</h1>
-  <p class="intro">Tell us about the defective frame and we'll let you know the outcome, usually within a minute.</p>
+  <p class="intro">Each account may submit up to three warranty claims per day. If you need to submit more, please contact your sales representative directly.</p>
 
   <form id="claim-form" novalidate>
 
@@ -318,33 +404,122 @@
       <p class="field-error">Enter your account number.</p>
     </div>
 
-    <div class="field" id="field-identifier">
-      <label id="identifier-label">Invoice number</label>
-      <div class="id-toggle" role="radiogroup" aria-labelledby="identifier-label">
-        <label>
-          <input type="radio" name="idType" value="invoice" checked>
-          <span>Invoice number</span>
-        </label>
-        <label>
-          <input type="radio" name="idType" value="po">
-          <span>PO number</span>
-        </label>
+    <div id="claims-container">
+
+      <div class="claim-item" data-claim-index="0">
+        <div class="claim-item-header">
+          <span class="claim-item-title">Claim 1</span>
+        </div>
+
+        <div class="field" id="field-identifier-0">
+          <label id="identifier-label-0">Invoice number</label>
+          <div class="id-toggle" role="radiogroup" aria-labelledby="identifier-label-0">
+            <label>
+              <input type="radio" name="idType-0" value="invoice" checked>
+              <span>Invoice number</span>
+            </label>
+            <label>
+              <input type="radio" name="idType-0" value="po">
+              <span>PO number</span>
+            </label>
+          </div>
+          <input type="text" class="identifierValue" data-index="0" autocomplete="off" required>
+          <p class="field-error">Enter the invoice or PO number from your order.</p>
+        </div>
+
+        <div class="style-color-row">
+          <div class="field">
+            <label for="styleName-0">Style name</label>
+            <input type="text" id="styleName-0" class="styleName" data-index="0" autocomplete="off">
+          </div>
+          <div class="field">
+            <label for="color-0">Color</label>
+            <input type="text" id="color-0" class="color" data-index="0" autocomplete="off">
+          </div>
+        </div>
+        <p class="hint">Only needed if more than one frame is on this invoice — e.g. "Fitz" and "Grey."</p>
       </div>
-      <input type="text" id="identifierValue" name="identifierValue" autocomplete="off" required>
-      <p class="field-error">Enter the invoice or PO number from your order.</p>
+
+      <div class="claim-item" data-claim-index="1" hidden>
+        <div class="claim-item-header">
+          <span class="claim-item-title">Claim 2</span>
+          <button type="button" class="remove-claim" data-index="1">Remove</button>
+        </div>
+
+        <div class="field" id="field-identifier-1">
+          <label id="identifier-label-1">Invoice number</label>
+          <div class="id-toggle" role="radiogroup" aria-labelledby="identifier-label-1">
+            <label>
+              <input type="radio" name="idType-1" value="invoice" checked>
+              <span>Invoice number</span>
+            </label>
+            <label>
+              <input type="radio" name="idType-1" value="po">
+              <span>PO number</span>
+            </label>
+          </div>
+          <input type="text" class="identifierValue" data-index="1" autocomplete="off">
+          <p class="field-error">Enter the invoice or PO number from your order.</p>
+        </div>
+
+        <div class="style-color-row">
+          <div class="field">
+            <label for="styleName-1">Style name</label>
+            <input type="text" id="styleName-1" class="styleName" data-index="1" autocomplete="off">
+          </div>
+          <div class="field">
+            <label for="color-1">Color</label>
+            <input type="text" id="color-1" class="color" data-index="1" autocomplete="off">
+          </div>
+        </div>
+        <p class="hint">Only needed if more than one frame is on this invoice — e.g. "Fitz" and "Grey."</p>
+      </div>
+
+      <div class="claim-item" data-claim-index="2" hidden>
+        <div class="claim-item-header">
+          <span class="claim-item-title">Claim 3</span>
+          <button type="button" class="remove-claim" data-index="2">Remove</button>
+        </div>
+
+        <div class="field" id="field-identifier-2">
+          <label id="identifier-label-2">Invoice number</label>
+          <div class="id-toggle" role="radiogroup" aria-labelledby="identifier-label-2">
+            <label>
+              <input type="radio" name="idType-2" value="invoice" checked>
+              <span>Invoice number</span>
+            </label>
+            <label>
+              <input type="radio" name="idType-2" value="po">
+              <span>PO number</span>
+            </label>
+          </div>
+          <input type="text" class="identifierValue" data-index="2" autocomplete="off">
+          <p class="field-error">Enter the invoice or PO number from your order.</p>
+        </div>
+
+        <div class="style-color-row">
+          <div class="field">
+            <label for="styleName-2">Style name</label>
+            <input type="text" id="styleName-2" class="styleName" data-index="2" autocomplete="off">
+          </div>
+          <div class="field">
+            <label for="color-2">Color</label>
+            <input type="text" id="color-2" class="color" data-index="2" autocomplete="off">
+          </div>
+        </div>
+        <p class="hint">Only needed if more than one frame is on this invoice — e.g. "Fitz" and "Grey."</p>
+      </div>
+
     </div>
 
-    <div class="field" id="field-sku">
-      <label for="sku">Item SKU</label>
-      <input type="text" id="sku" name="sku" autocomplete="off" required>
-      <p class="hint">The item code printed on your packing slip, e.g. MS696SAGRN053.</p>
-      <p class="field-error">Enter the item SKU.</p>
-    </div>
+    <button type="button" class="add-claim" id="add-claim-btn">
+      <span class="add-claim-icon">+</span> Add another claim
+    </button>
 
     <div class="field" id="field-description">
       <label for="description">Brief description of issue</label>
       <textarea id="description" name="description" required></textarea>
-      <p class="field-error">Briefly describe what's wrong with the frame.</p>
+      <p class="field-error">Briefly describe what's wrong with the frame(s).</p>
     </div>
 
     <div class="field" id="field-photo">
@@ -360,35 +535,62 @@
     <button type="submit" id="submit-btn">Submit claim</button>
   </form>
 
-  <div class="result" id="result" role="status" aria-live="polite">
-    <p class="result-title" id="result-title"></p>
-    <p class="result-message" id="result-message"></p>
-    <button type="button" class="try-again" id="try-again">Submit another claim</button>
-  </div>
+  <div class="results" id="results" role="status" aria-live="polite"></div>
+  <button type="button" class="try-again" id="try-again" hidden>Submit another claim</button>
 
 </main>
 
 <script>
 (function () {
+  const MAX_CLAIMS = 3;
+  let visibleCount = 1;
+
   const form = document.getElementById('claim-form');
   const submitBtn = document.getElementById('submit-btn');
-  const result = document.getElementById('result');
-  const resultTitle = document.getElementById('result-title');
-  const resultMessage = document.getElementById('result-message');
+  const addClaimBtn = document.getElementById('add-claim-btn');
+  const claimsContainer = document.getElementById('claims-container');
+  const results = document.getElementById('results');
   const tryAgainBtn = document.getElementById('try-again');
-  const identifierLabel = document.getElementById('identifier-label');
-  const identifierInput = document.getElementById('identifierValue');
   const uploadZone = document.getElementById('upload-zone');
   const photoInput = document.getElementById('photo');
   const uploadLabel = document.getElementById('upload-label');
   const preview = document.getElementById('preview');
   const previewImg = document.getElementById('preview-img');
 
-  // Swap the identifier field's label depending on the toggle, keeping the form compact.
-  document.querySelectorAll('input[name="idType"]').forEach((radio) => {
-    radio.addEventListener('change', () => {
-      identifierLabel.textContent = radio.value === 'po' ? 'PO number' : 'Invoice number';
-    });
+  function claimBlock(index) {
+    return claimsContainer.querySelector(`[data-claim-index="${index}"]`);
+  }
+
+  function updateAddButtonVisibility() {
+    addClaimBtn.hidden = visibleCount >= MAX_CLAIMS;
+  }
+
+  addClaimBtn.addEventListener('click', () => {
+    if (visibleCount >= MAX_CLAIMS) return;
+    claimBlock(visibleCount).hidden = false;
+    visibleCount++;
+    updateAddButtonVisibility();
+  });
+
+  claimsContainer.addEventListener('click', (e) => {
+    if (!e.target.classList.contains('remove-claim')) return;
+    const index = Number(e.target.dataset.index);
+    const block = claimBlock(index);
+    block.hidden = true;
+    block.querySelector('.identifierValue').value = '';
+    block.querySelector('.styleName').value = '';
+    block.querySelector('.color').value = '';
+    block.classList.remove('invalid');
+    visibleCount--;
+    updateAddButtonVisibility();
+  });
+
+  // Swap each claim block's identifier label depending on its own toggle.
+  claimsContainer.addEventListener('change', (e) => {
+    if (!e.target.matches('input[type="radio"]')) return;
+    const index = e.target.name.split('-')[1];
+    document.getElementById(`identifier-label-${index}`).textContent =
+      e.target.value === 'po' ? 'PO number' : 'Invoice number';
   });
 
   // Drag-and-drop support, plus click-to-browse via the hidden file input.
@@ -435,8 +637,8 @@
     document.querySelectorAll('.field').forEach((f) => f.classList.remove('invalid'));
   }
 
-  function markInvalid(fieldId) {
-    document.getElementById(fieldId).classList.add('invalid');
+  function markInvalid(el) {
+    el.classList.add('invalid');
   }
 
   function validate() {
@@ -444,35 +646,49 @@
     let valid = true;
 
     if (!document.getElementById('accountNumber').value.trim()) {
-      markInvalid('field-account');
+      markInvalid(document.getElementById('field-account'));
       valid = false;
     }
-    if (!identifierInput.value.trim()) {
-      markInvalid('field-identifier');
-      valid = false;
+
+    for (let i = 0; i < visibleCount; i++) {
+      const block = claimBlock(i);
+      const identifierInput = block.querySelector('.identifierValue');
+      if (!identifierInput.value.trim()) {
+        markInvalid(document.getElementById(`field-identifier-${i}`));
+        valid = false;
+      }
     }
-    if (!document.getElementById('sku').value.trim()) {
-      markInvalid('field-sku');
-      valid = false;
-    }
+
     if (!document.getElementById('description').value.trim()) {
-      markInvalid('field-description');
+      markInvalid(document.getElementById('field-description'));
       valid = false;
     }
     if (!photoInput.files.length) {
-      markInvalid('field-photo');
+      markInvalid(document.getElementById('field-photo'));
       valid = false;
     }
 
     return valid;
   }
 
-  function showResult(outcome, title, message) {
-    result.className = 'result visible ' + outcome;
-    resultTitle.textContent = title;
-    resultMessage.textContent = message;
-    form.hidden = true;
-    result.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  function collectItems() {
+    const items = [];
+    for (let i = 0; i < visibleCount; i++) {
+      const block = claimBlock(i);
+      const idType = block.querySelector(`input[name="idType-${i}"]:checked`).value;
+      const identifierValue = block.querySelector('.identifierValue').value.trim();
+      const item = {
+        styleName: block.querySelector('.styleName').value.trim(),
+        color: block.querySelector('.color').value.trim(),
+      };
+      if (idType === 'po') {
+        item.poNumber = identifierValue;
+      } else {
+        item.invoiceNumber = identifierValue;
+      }
+      items.push(item);
+    }
+    return items;
   }
 
   const OUTCOME_TITLES = {
@@ -480,6 +696,24 @@
     offer: 'Replacement offer',
     escalate: 'We need a closer look',
   };
+
+  function renderResults(cards) {
+    results.innerHTML = '';
+    cards.forEach((card) => {
+      const el = document.createElement('div');
+      el.className = `result-card ${card.outcome}`;
+      el.innerHTML = `
+        ${card.identifier ? `<p class="result-identifier">${card.identifier}</p>` : ''}
+        <p class="result-title">${card.title}</p>
+        <p class="result-message">${card.message}</p>
+      `;
+      results.appendChild(el);
+    });
+    results.classList.add('visible');
+    form.hidden = true;
+    tryAgainBtn.hidden = false;
+    results.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }
 
   form.addEventListener('submit', async (e) => {
     e.preventDefault();
@@ -491,17 +725,11 @@
     submitBtn.disabled = true;
     submitBtn.textContent = 'Submitting…';
 
-    const idType = document.querySelector('input[name="idType"]:checked').value;
     const payload = {
       accountNumber: document.getElementById('accountNumber').value.trim(),
-      sku: document.getElementById('sku').value.trim(),
       description: document.getElementById('description').value.trim(),
+      items: collectItems(),
     };
-    if (idType === 'po') {
-      payload.poNumber = identifierInput.value.trim();
-    } else {
-      payload.invoiceNumber = identifierInput.value.trim();
-    }
 
     try {
       payload.photoBase64 = await fileToBase64(photoInput.files[0]);
@@ -515,13 +743,32 @@
       const data = await res.json();
 
       if (!res.ok) {
-        showResult('error', 'Something went wrong', data.error || 'Please try again or contact customer relations.');
+        renderResults([
+          {
+            outcome: 'error',
+            title: 'Something went wrong',
+            message: data.error || 'Please try again or contact customer relations.',
+          },
+        ]);
         return;
       }
 
-      showResult(data.outcome, OUTCOME_TITLES[data.outcome] || 'Claim received', data.message);
+      renderResults(
+        data.results.map((r) => ({
+          outcome: r.outcome,
+          identifier: r.identifier,
+          title: OUTCOME_TITLES[r.outcome] || 'Claim received',
+          message: r.message,
+        }))
+      );
     } catch (err) {
-      showResult('error', 'Something went wrong', 'Please check your connection and try again, or contact customer relations.');
+      renderResults([
+        {
+          outcome: 'error',
+          title: 'Something went wrong',
+          message: 'Please check your connection and try again, or contact customer relations.',
+        },
+      ]);
     } finally {
       submitBtn.disabled = false;
       submitBtn.textContent = 'Submit claim';
@@ -531,11 +778,23 @@
   tryAgainBtn.addEventListener('click', () => {
     form.reset();
     form.hidden = false;
-    result.classList.remove('visible');
+    results.classList.remove('visible');
+    results.innerHTML = '';
+    tryAgainBtn.hidden = true;
     uploadLabel.textContent = '';
     uploadLabel.innerHTML = '<strong>Choose a photo</strong> or drag one here';
     preview.hidden = true;
-    identifierLabel.textContent = 'Invoice number';
+
+    for (let i = 1; i < MAX_CLAIMS; i++) {
+      claimBlock(i).hidden = true;
+    }
+    visibleCount = 1;
+    updateAddButtonVisibility();
+
+    document.querySelectorAll('[id^="identifier-label-"]').forEach((label) => {
+      label.textContent = 'Invoice number';
+    });
+
     clearErrors();
     window.scrollTo({ top: 0, behavior: 'smooth' });
   });

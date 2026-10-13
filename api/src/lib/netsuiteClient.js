@@ -122,6 +122,13 @@ async function getInvoiceLineItems(invoiceId) {
   const data = await response.json();
   const lines = data.item?.items || [];
 
+  // custcol_modo_color (and its SPS fallback) are references to a related
+  // "colour" record, not plain strings — NetSuite returns them as an object
+  // with a refName holding the actual human-readable name (e.g. "GREEN
+  // TORTOISE"), plus an id and a link. style, by contrast, genuinely is a
+  // plain string already.
+  const colorName = (field) => (field && typeof field === 'object' ? field.refName : field) || '';
+
   return lines
     .filter((line) => line.item && line.item.id)
     .map((line) => ({
@@ -129,7 +136,7 @@ async function getInvoiceLineItems(invoiceId) {
       sku: line.item.refName || '',
       description: '',
       style: line.custcol_modo_item_style || '',
-      color: line.custcol_modo_color || line.custcol_sps_productcolorcode || '',
+      color: colorName(line.custcol_modo_color) || colorName(line.custcol_sps_productcolorcode),
     }));
 }
 

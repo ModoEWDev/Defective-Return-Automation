@@ -83,6 +83,8 @@ app.http('submitClaim', {
         jsonBody: {
           error:
             'Something went wrong processing this claim. Please try again or contact customer relations.',
+          // TEMPORARY DEBUG — remove once resolved.
+          debugMessage: err.message,
         },
       };
     }

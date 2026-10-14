@@ -86,6 +86,28 @@ async function findInvoicesForPO(accountNumber, poNumber) {
   }));
 }
 
+/**
+ * The actual company policy: "credit the last paid price of the exact SKU"
+ * — meaning the most recent invoice for this item on this account, which
+ * may not be the same invoice the customer referenced to identify the
+ * claim (they may have bought the same SKU more than once, at different
+ * prices over time).
+ */
+async function getLastPaidPrice(accountNumber, sku) {
+  const rows = await suiteQL(`
+    SELECT ABS(tl.netamount) AS amount, t.trandate
+    FROM transactionline tl
+    JOIN transaction t ON t.id = tl.transaction
+    JOIN item i ON i.id = tl.item
+    WHERE t.type = 'CustInvc'
+      AND t.entity = (SELECT id FROM customer WHERE entityid = '${escapeSql(accountNumber)}')
+      AND i.itemid = '${escapeSql(sku)}'
+    ORDER BY t.trandate DESC
+  `);
+
+  return rows.length ? rows[0].amount : null;
+}
+
 async function getSalesRep(accountNumber) {
   const rows = await suiteQL(`
     SELECT salesrep
@@ -250,6 +272,7 @@ module.exports = {
   findInvoiceByNumber,
   findInvoicesForPO,
   getInvoiceLineItems,
+  getLastPaidPrice,
   getSalesRep,
   getUnitsPurchased,
   getUnitsCredited,

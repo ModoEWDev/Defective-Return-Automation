@@ -2,6 +2,7 @@ const {
   findInvoiceByNumber,
   findInvoicesForPO,
   getInvoiceLineItems,
+  getLastPaidPrice,
   getSalesRep,
   getUnitsPurchased,
   getUnitsCredited,
@@ -161,12 +162,16 @@ async function evaluateClaim(claim, context) {
     };
   }
 
-  // All gates clear — post the credit.
+  // All gates clear — post the credit. Company policy credits the *last
+  // paid price* of this exact SKU, which may differ from whatever this
+  // particular referenced invoice shows if the account bought it more than
+  // once at different prices over time.
+  const lastPaidPrice = await getLastPaidPrice(accountNumber, sku);
   const creditMemo = await createCreditMemo({
     invoiceId: invoice.id,
     accountNumber,
     itemInternalId: resolvedItem.itemInternalId,
-    amount: resolvedItem.amount,
+    amount: lastPaidPrice !== null ? lastPaidPrice : resolvedItem.amount,
   });
 
   return {

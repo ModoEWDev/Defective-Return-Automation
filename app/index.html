@@ -139,48 +139,6 @@
     outline-offset: 2px;
   }
 
-  .id-toggle {
-    display: flex;
-    gap: 8px;
-    margin-bottom: 10px;
-  }
-
-  .id-toggle label {
-    flex: 1;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: 7px;
-    font-size: 14px;
-    font-weight: 500;
-    padding: 9px 10px;
-    border: 1px solid var(--border);
-    border-radius: 8px;
-    cursor: pointer;
-    margin-bottom: 0;
-    transition: border-color 0.15s ease, background 0.15s ease;
-  }
-
-  @media (prefers-reduced-motion: reduce) {
-    .id-toggle label { transition: none; }
-  }
-
-  .id-toggle input {
-    position: absolute;
-    opacity: 0;
-    width: 1px;
-    height: 1px;
-  }
-
-  .id-toggle input:checked + span {
-    color: var(--accent);
-  }
-
-  .id-toggle label:has(input:checked) {
-    border-color: var(--accent);
-    background: var(--accent-soft);
-  }
-
   .claim-item {
     border: 1px solid var(--border);
     border-radius: 8px;
@@ -436,19 +394,10 @@
         </div>
 
         <div class="field" id="field-identifier-0">
-          <label id="identifier-label-0">Invoice number</label>
-          <div class="id-toggle" role="radiogroup" aria-labelledby="identifier-label-0">
-            <label>
-              <input type="radio" name="idType-0" value="invoice" checked>
-              <span>Invoice number</span>
-            </label>
-            <label>
-              <input type="radio" name="idType-0" value="po">
-              <span>PO number</span>
-            </label>
-          </div>
-          <input type="text" class="identifierValue" data-index="0" autocomplete="off" required>
-          <p class="field-error">Enter the invoice or PO number from your order.</p>
+          <label for="documentNumber-0">Document number</label>
+          <input type="text" id="documentNumber-0" class="identifierValue" data-index="0" autocomplete="off" required>
+          <p class="hint">Your invoice, PO, or sales order number — whichever you have.</p>
+          <p class="field-error">Enter the document number from your order.</p>
         </div>
 
         <div class="style-color-row">
@@ -471,19 +420,10 @@
         </div>
 
         <div class="field" id="field-identifier-1">
-          <label id="identifier-label-1">Invoice number</label>
-          <div class="id-toggle" role="radiogroup" aria-labelledby="identifier-label-1">
-            <label>
-              <input type="radio" name="idType-1" value="invoice" checked>
-              <span>Invoice number</span>
-            </label>
-            <label>
-              <input type="radio" name="idType-1" value="po">
-              <span>PO number</span>
-            </label>
-          </div>
-          <input type="text" class="identifierValue" data-index="1" autocomplete="off">
-          <p class="field-error">Enter the invoice or PO number from your order.</p>
+          <label for="documentNumber-1">Document number</label>
+          <input type="text" id="documentNumber-1" class="identifierValue" data-index="1" autocomplete="off">
+          <p class="hint">Your invoice, PO, or sales order number — whichever you have.</p>
+          <p class="field-error">Enter the document number from your order.</p>
         </div>
 
         <div class="style-color-row">
@@ -506,19 +446,10 @@
         </div>
 
         <div class="field" id="field-identifier-2">
-          <label id="identifier-label-2">Invoice number</label>
-          <div class="id-toggle" role="radiogroup" aria-labelledby="identifier-label-2">
-            <label>
-              <input type="radio" name="idType-2" value="invoice" checked>
-              <span>Invoice number</span>
-            </label>
-            <label>
-              <input type="radio" name="idType-2" value="po">
-              <span>PO number</span>
-            </label>
-          </div>
-          <input type="text" class="identifierValue" data-index="2" autocomplete="off">
-          <p class="field-error">Enter the invoice or PO number from your order.</p>
+          <label for="documentNumber-2">Document number</label>
+          <input type="text" id="documentNumber-2" class="identifierValue" data-index="2" autocomplete="off">
+          <p class="hint">Your invoice, PO, or sales order number — whichever you have.</p>
+          <p class="field-error">Enter the document number from your order.</p>
         </div>
 
         <div class="style-color-row">
@@ -615,14 +546,6 @@
     updateAddButtonVisibility();
   });
 
-  // Swap each claim block's identifier label depending on its own toggle.
-  claimsContainer.addEventListener('change', (e) => {
-    if (!e.target.matches('input[type="radio"]')) return;
-    const index = e.target.name.split('-')[1];
-    document.getElementById(`identifier-label-${index}`).textContent =
-      e.target.value === 'po' ? 'PO number' : 'Invoice number';
-  });
-
   // Drag-and-drop support, plus click-to-browse via the hidden file input.
   uploadZone.addEventListener('click', () => photoInput.click());
   uploadZone.addEventListener('keydown', (e) => {
@@ -705,17 +628,11 @@
     const items = [];
     for (let i = 0; i < visibleCount; i++) {
       const block = claimBlock(i);
-      const idType = block.querySelector(`input[name="idType-${i}"]:checked`).value;
-      const identifierValue = block.querySelector('.identifierValue').value.trim();
       const item = {
+        documentNumber: block.querySelector('.identifierValue').value.trim(),
         styleName: block.querySelector('.styleName').value.trim(),
         color: block.querySelector('.color').value.trim(),
       };
-      if (idType === 'po') {
-        item.poNumber = identifierValue;
-      } else {
-        item.invoiceNumber = identifierValue;
-      }
       items.push(item);
     }
     return items;
@@ -821,10 +738,6 @@
     }
     visibleCount = 1;
     updateAddButtonVisibility();
-
-    document.querySelectorAll('[id^="identifier-label-"]').forEach((label) => {
-      label.textContent = 'Invoice number';
-    });
 
     clearErrors();
     window.scrollTo({ top: 0, behavior: 'smooth' });

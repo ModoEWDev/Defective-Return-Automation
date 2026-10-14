@@ -36,10 +36,10 @@ app.http('submitClaim', {
     }
 
     for (const [index, item] of items.entries()) {
-      if (!item.invoiceNumber && !item.poNumber) {
+      if (!item.documentNumber) {
         return {
           status: 400,
-          jsonBody: { error: `Claim ${index + 1}: missing invoiceNumber or poNumber.` },
+          jsonBody: { error: `Claim ${index + 1}: missing documentNumber.` },
         };
       }
     }
@@ -56,8 +56,7 @@ app.http('submitClaim', {
             accountNumber,
             description,
             photoBase64,
-            invoiceNumber: item.invoiceNumber,
-            poNumber: item.poNumber,
+            documentNumber: item.documentNumber,
             styleName: item.styleName,
             color: item.color,
           },
@@ -66,10 +65,8 @@ app.http('submitClaim', {
         const message = await draftCustomerMessage(result, context);
 
         results.push({
-          identifier: item.invoiceNumber
-            ? `Invoice ${item.invoiceNumber}`
-            : `PO ${item.poNumber}`,
-          outcome: result.outcome, // "approved" | "offer" | "escalate"
+          identifier: `Document ${item.documentNumber}`,
+          outcome: result.outcome, // "approved" | "offer" | "escalate" | "invalid"
           message,
           details: result.details,
         });
@@ -83,8 +80,6 @@ app.http('submitClaim', {
         jsonBody: {
           error:
             'Something went wrong processing this claim. Please try again or contact customer relations.',
-          // TEMPORARY DEBUG — remove once resolved.
-          debugMessage: err.message,
         },
       };
     }

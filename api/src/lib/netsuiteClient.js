@@ -24,44 +24,46 @@ async function suiteQL(query) {
 }
 
 /**
- * Looks up a single invoice directly by its own number. Returns null if
- * nothing matches, or { ambiguous: true } in the (unexpected) case of more
- * than one invoice sharing a number on the same account.
+ * Looks up invoice(s) from a single customer-provided "document number" —
+ * customers generally don't know or care whether what they're holding is
+ * an invoice number, a PO number, or a Sales Order number, so this tries
+ * all three rather than asking them to classify it:
+ *   1. A direct invoice number.
+ *   2. A Sales Order's own number, or its PO# field (otherrefnum) — either
+ *      way, every invoice that Sales Order was billed into is returned,
+ *      since one order can legitimately become more than one invoice
+ *      (split shipments are a normal, common pattern here).
+ * Returns an array of invoices (possibly more than one, for the Sales
+ * Order case), an empty array if nothing matched at all, or
+ * { ambiguous: true } in the rare case of a duplicate invoice number.
  */
-async function findInvoiceByNumber(accountNumber, invoiceNumber) {
-  const rows = await suiteQL(`
+async function findInvoicesByDocumentNumber(accountNumber, documentNumber) {
+  const invoiceRows = await suiteQL(`
     SELECT id, tranid, trandate
     FROM transaction
     WHERE type = 'CustInvc'
-      AND tranid = '${escapeSql(invoiceNumber)}'
+      AND tranid = '${escapeSql(documentNumber)}'
       AND entity = (SELECT id FROM customer WHERE entityid = '${escapeSql(accountNumber)}')
   `);
 
-  if (!rows.length) return null;
-  if (rows.length > 1) return { ambiguous: true };
+  if (invoiceRows.length === 1) {
+    return [
+      {
+        id: invoiceRows[0].id,
+        tranid: invoiceRows[0].tranid,
+        trandate: new Date(invoiceRows[0].trandate),
+      },
+    ];
+  }
+  if (invoiceRows.length > 1) {
+    return { ambiguous: true };
+  }
 
-  return {
-    id: rows[0].id,
-    tranid: rows[0].tranid,
-    trandate: new Date(rows[0].trandate),
-  };
-}
-
-/**
- * Looks up every invoice tied to a PO number. "PO number" here is actually
- * the Sales Order's own header-level field (otherrefnum), not something
- * stored on the invoice directly. A single Sales Order can be billed as
- * more than one invoice (split shipments are a normal, common pattern here)
- * — so unlike an invoice-number lookup, this deliberately returns all of
- * them rather than treating more than one as ambiguous; the caller
- * disambiguates further using the item being claimed.
- */
-async function findInvoicesForPO(accountNumber, poNumber) {
   const [salesOrder] = await suiteQL(`
     SELECT id
     FROM transaction
     WHERE type = 'SalesOrd'
-      AND otherrefnum = '${escapeSql(poNumber)}'
+      AND (tranid = '${escapeSql(documentNumber)}' OR otherrefnum = '${escapeSql(documentNumber)}')
       AND entity = (SELECT id FROM customer WHERE entityid = '${escapeSql(accountNumber)}')
   `);
 
@@ -84,6 +86,32 @@ async function findInvoicesForPO(accountNumber, poNumber) {
     tranid: row.tranid,
     trandate: new Date(row.trandate),
   }));
+}
+
+/**
+ * Resolves whatever account number the customer typed to the real one on
+ * file. Customers commonly type only part of it — dropping a letter
+ * prefix (PECAA709145 -> 709145) or everything before a dash
+ * (703242-011120 -> 011120) — so if an exact match fails, this falls back
+ * to matching accounts whose number *ends with* exactly the digits given.
+ */
+async function resolveAccountNumber(input) {
+  const exact = await suiteQL(`
+    SELECT entityid FROM customer WHERE entityid = '${escapeSql(input)}'
+  `);
+  if (exact.length === 1) return { entityid: exact[0].entityid };
+  if (exact.length > 1) return { ambiguous: true };
+
+  const digitsOnly = String(input).replace(/[^0-9]/g, '');
+  if (!digitsOnly) return null;
+
+  const suffixMatches = await suiteQL(`
+    SELECT entityid FROM customer WHERE entityid LIKE '%${escapeSql(digitsOnly)}'
+  `);
+
+  if (suffixMatches.length === 1) return { entityid: suffixMatches[0].entityid };
+  if (suffixMatches.length > 1) return { ambiguous: true };
+  return null;
 }
 
 /**
@@ -269,8 +297,8 @@ function escapeSql(value) {
 }
 
 module.exports = {
-  findInvoiceByNumber,
-  findInvoicesForPO,
+  findInvoicesByDocumentNumber,
+  resolveAccountNumber,
   getInvoiceLineItems,
   getLastPaidPrice,
   getSalesRep,

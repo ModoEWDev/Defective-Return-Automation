@@ -1,6 +1,6 @@
 const {
-  findInvoiceByNumber,
-  findInvoicesForPO,
+  findInvoicesByDocumentNumber,
+  resolveAccountNumber,
   getInvoiceLineItems,
   getLastPaidPrice,
   getSalesRep,
@@ -16,7 +16,29 @@ const KATHRYN_LAND_REP_ID = '396';
 const MAX_CLAIMS_PER_DAY = 3;
 
 async function evaluateClaim(claim, context) {
-  const { invoiceNumber, poNumber, accountNumber, styleName, color, description } = claim;
+  const { documentNumber, styleName, color, description } = claim;
+
+  // Gate 0 — resolve whatever account number the customer actually typed
+  // to the real one on file. Customers very commonly type only part of it
+  // (dropping a letter prefix or everything before a dash), so this needs
+  // to be resolved once, up front, and the resolved canonical number used
+  // for every check from here on — including the daily cap, so a customer
+  // typing their account number slightly differently each time doesn't
+  // accidentally dodge or double-count against the limit.
+  const resolvedAccount = await resolveAccountNumber(claim.accountNumber);
+  if (!resolvedAccount) {
+    return {
+      outcome: 'invalid',
+      details: { reason: "The account number can't be found. Please double-check it and submit the claim again." },
+    };
+  }
+  if (resolvedAccount.ambiguous) {
+    return {
+      outcome: 'escalate',
+      details: { reason: 'More than one account matches the number provided — needs a human to confirm which one.' },
+    };
+  }
+  const accountNumber = resolvedAccount.entityid;
 
   // Gate 1 — daily claim limit. Checked before anything else so a capped
   // account doesn't consume a NetSuite lookup for nothing.
@@ -43,39 +65,28 @@ async function evaluateClaim(claim, context) {
     };
   }
 
-  // Gate 3 — locate candidate invoice(s). An invoice number always points
-  // to exactly one invoice. A PO number, though, can legitimately cover
-  // more than one invoice — split shipments are a normal, common pattern
-  // here — so rather than treating that as ambiguous, gather every item
-  // across all of them and let the style/color the customer gave pick out
-  // the specific one, the same way it would within a single invoice.
-  let candidateInvoices;
+  // Gate 3 — locate candidate invoice(s). Customers don't reliably know
+  // whether what they're holding is an invoice number, a PO number, or a
+  // Sales Order number, so one lookup tries all three. A single Sales
+  // Order can legitimately cover more than one invoice (split shipments
+  // are a normal, common pattern here) — rather than treating that as
+  // ambiguous, every item across all of them gets gathered, and the
+  // style/color the customer gave picks out the specific one.
+  const candidateInvoices = await findInvoicesByDocumentNumber(accountNumber, documentNumber);
 
-  if (invoiceNumber) {
-    const invoice = await findInvoiceByNumber(accountNumber, invoiceNumber);
-    if (!invoice) {
-      return {
-        outcome: 'invalid',
-        details: { reason: "The invoice number can't be found on your account. Please double-check it and submit the claim again." },
-      };
-    }
-    if (invoice.ambiguous) {
-      // A data-integrity oddity, not something the customer did wrong —
-      // a different invoice number typed correctly won't fix this.
-      return {
-        outcome: 'escalate',
-        details: { reason: 'More than one invoice shares this number — needs a human to confirm which one.' },
-      };
-    }
-    candidateInvoices = [invoice];
-  } else {
-    candidateInvoices = await findInvoicesForPO(accountNumber, poNumber);
-    if (!candidateInvoices.length) {
-      return {
-        outcome: 'invalid',
-        details: { reason: "The PO number can't be found on your account. Please double-check it and submit the claim again." },
-      };
-    }
+  if (candidateInvoices.ambiguous) {
+    // A data-integrity oddity, not something the customer did wrong — a
+    // different number typed correctly won't fix this.
+    return {
+      outcome: 'escalate',
+      details: { reason: 'More than one invoice shares this number — needs a human to confirm which one.' },
+    };
+  }
+  if (!candidateInvoices.length) {
+    return {
+      outcome: 'invalid',
+      details: { reason: "That document number can't be found on your account. Please double-check it and submit the claim again." },
+    };
   }
 
   // Gather every line item across all candidate invoices, each tagged with
@@ -127,15 +138,15 @@ async function evaluateClaim(claim, context) {
 
       if (!resolvedItem) {
         if (wasGenuinelyAmbiguous) {
-          // More than one item shares the same style/color description
-          // (e.g. a frame and its matching clip) — no amount of
-          // double-checking and resubmitting the same correct info would
-          // ever resolve this, so it needs a human, not a customer retry.
+          // More than one item shares the same style/color description —
+          // typically a frame and its matching clip. Rather than
+          // escalating, tell them exactly what to add so they can resolve
+          // it themselves on resubmission.
           return {
-            outcome: 'escalate',
+            outcome: 'invalid',
             details: {
               reason:
-                'More than one item on this invoice matches the same style/color description — needs a human to confirm which one.',
+                "This invoice has both a frame and a matching clip, and it's not clear which one this claim is about. Please specify in the issue description whether it's the frame, the clip, or both, and submit your claim again.",
             },
           };
         }

@@ -169,6 +169,10 @@ async function getInvoiceLineItems(invoiceId) {
       description: '',
       style: line.custcol_modo_item_style || '',
       color: colorName(line.custcol_modo_color) || colorName(line.custcol_sps_productcolorcode),
+      // The actual historical price paid on this specific invoice line —
+      // credits must match this exactly, never NetSuite's current default
+      // pricing, which can drift from what the customer actually paid.
+      amount: Math.abs(line.amount || 0),
     }));
 }
 
@@ -184,7 +188,7 @@ async function getInvoiceLineItems(invoiceId) {
  *   - Test it against the sandbox account first, on a real invoice/SKU pair,
  *     and check the resulting credit memo in the NetSuite UI before trusting it.
  */
-async function createCreditMemo({ invoiceId, accountNumber, itemInternalId }) {
+async function createCreditMemo({ invoiceId, accountNumber, itemInternalId, amount }) {
   const token = await getAccessToken();
 
   const [customerRow] = await suiteQL(`
@@ -203,6 +207,10 @@ async function createCreditMemo({ invoiceId, accountNumber, itemInternalId }) {
         {
           item: { id: itemInternalId },
           quantity: 1,
+          // Explicitly forces this exact historical amount — without this,
+          // NetSuite silently falls back to current default pricing, which
+          // can differ from what the customer actually paid.
+          amount,
         },
       ],
     },

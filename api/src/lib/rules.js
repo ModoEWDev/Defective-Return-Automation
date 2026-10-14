@@ -166,6 +166,7 @@ async function evaluateClaim(claim, context) {
     invoiceId: invoice.id,
     accountNumber,
     itemInternalId: resolvedItem.itemInternalId,
+    amount: resolvedItem.amount,
   });
 
   return {

@@ -202,6 +202,11 @@ async function createCreditMemo({ invoiceId, accountNumber, itemInternalId, amou
   const payload = {
     entity: { id: customerRow.id },
     createdFrom: { id: invoiceId },
+    // "createdFrom" copies header-level defaults from the source invoice,
+    // including its shipping cost — explicitly zeroing it here prevents
+    // the original shipment's shipping charge from silently riding along
+    // on a credit meant only for one defective item.
+    shippingCost: 0,
     item: {
       items: [
         {

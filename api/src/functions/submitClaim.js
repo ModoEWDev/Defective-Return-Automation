@@ -59,6 +59,7 @@ app.http('submitClaim', {
             documentNumber: item.documentNumber,
             styleName: item.styleName,
             color: item.color,
+            productType: item.productType,
           },
           context
         );

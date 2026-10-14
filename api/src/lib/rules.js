@@ -16,7 +16,7 @@ const KATHRYN_LAND_REP_ID = '396';
 const MAX_CLAIMS_PER_DAY = 3;
 
 async function evaluateClaim(claim, context) {
-  const { documentNumber, styleName, color, description } = claim;
+  const { documentNumber, styleName, color, productType, description } = claim;
 
   // Gate 0 — resolve whatever account number the customer actually typed
   // to the real one on file. Customers very commonly type only part of it
@@ -107,23 +107,41 @@ async function evaluateClaim(claim, context) {
     };
   }
 
-  // If there's only one item total AND the customer didn't type a
-  // style/color at all, that's unambiguously the one — nothing to check.
-  // But if they DID provide something, even for a single-item invoice, it
-  // still has to actually match — leaving the field blank is fine (they
-  // may not know it), but typing in something wrong should not be
-  // silently waved through.
+  // If the customer picked a product type (Frame/Clip), narrow to only
+  // items of that exact type first — this is the deterministic signal
+  // that actually distinguishes a frame from its otherwise-identical
+  // clip, and resolves the common case immediately without ever needing
+  // style/color or Claude's judgment at all.
+  const itemsToMatch = productType
+    ? allItems.filter((item) => item.productType === productType)
+    : allItems;
+
+  if (productType && !itemsToMatch.length) {
+    return {
+      outcome: 'invalid',
+      details: {
+        reason: `No ${productType === 'CLIP' ? 'clip' : 'frame'} was found on this invoice matching that selection. Please double-check and submit your claim again.`,
+      },
+    };
+  }
+
+  // If there's only one item (after any product-type filtering) AND the
+  // customer didn't type a style/color at all, that's unambiguously the
+  // one — nothing to check. But if they DID provide something, even for a
+  // single-item invoice, it still has to actually match — leaving the
+  // field blank is fine (they may not know it), but typing in something
+  // wrong should not be silently waved through.
   let resolvedItem;
 
-  if (allItems.length === 1 && !styleName && !color) {
-    resolvedItem = allItems[0];
+  if (itemsToMatch.length === 1 && !styleName && !color) {
+    resolvedItem = itemsToMatch[0];
   } else {
     const tokens = `${styleName || ''} ${color || ''}`
       .toLowerCase()
       .split(/\s+/)
       .filter((t) => t.length > 1);
 
-    const matches = allItems.filter((item) => {
+    const matches = itemsToMatch.filter((item) => {
       const haystack = `${item.style} ${item.color}`.toLowerCase();
       return tokens.length > 0 && tokens.every((t) => haystack.includes(t));
     });
@@ -134,19 +152,19 @@ async function evaluateClaim(claim, context) {
       // Zero or multiple literal matches — let Claude use judgment on
       // abbreviations/informal naming before giving up.
       const wasGenuinelyAmbiguous = matches.length > 1;
-      resolvedItem = await matchItemWithClaude(allItems, styleName, color, description, context);
+      resolvedItem = await matchItemWithClaude(itemsToMatch, styleName, color, description, context);
 
       if (!resolvedItem) {
         if (wasGenuinelyAmbiguous) {
           // More than one item shares the same style/color description —
           // typically a frame and its matching clip. Rather than
-          // escalating, tell them exactly what to add so they can resolve
-          // it themselves on resubmission.
+          // escalating, tell them exactly what to pick/add so they can
+          // resolve it themselves on resubmission.
           return {
             outcome: 'invalid',
             details: {
               reason:
-                "This invoice has both a frame and a matching clip, and it's not clear which one this claim is about. Please specify in the issue description whether it's the frame, the clip, or both, and submit your claim again.",
+                "This invoice has both a frame and a matching clip, and it's not clear which one this claim is about. Please select Frame or Clip in the Product Type field (or specify it in the issue description) and submit your claim again. If both are defective, submit them as two separate claims using \"Add another claim,\" one for the frame and one for the clip.",
             },
           };
         }

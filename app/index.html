@@ -114,6 +114,7 @@
   }
 
   input[type="text"],
+  select,
   textarea {
     width: 100%;
     font: inherit;
@@ -132,6 +133,7 @@
   }
 
   input[type="text"]:focus,
+  select:focus,
   textarea:focus,
   button:focus-visible,
   .upload:focus-within {
@@ -409,8 +411,16 @@
             <label for="color-0">Color</label>
             <input type="text" id="color-0" class="color" data-index="0" autocomplete="off">
           </div>
+          <div class="field">
+            <label for="productType-0">Frame or clip?</label>
+            <select id="productType-0" class="productType" data-index="0">
+              <option value="">Not sure / not applicable</option>
+              <option value="OPTICAL">Frame</option>
+              <option value="CLIP">Clip</option>
+            </select>
+          </div>
         </div>
-        <p class="hint">Only needed if more than one frame is on this invoice — e.g. "Fitz" and "Grey."</p>
+        <p class="hint">Only needed if more than one frame (or a frame and its clip) is on this invoice — e.g. "Fitz" and "Grey."</p>
       </div>
 
       <div class="claim-item" data-claim-index="1" hidden>
@@ -435,8 +445,16 @@
             <label for="color-1">Color</label>
             <input type="text" id="color-1" class="color" data-index="1" autocomplete="off">
           </div>
+          <div class="field">
+            <label for="productType-1">Frame or clip?</label>
+            <select id="productType-1" class="productType" data-index="1">
+              <option value="">Not sure / not applicable</option>
+              <option value="OPTICAL">Frame</option>
+              <option value="CLIP">Clip</option>
+            </select>
+          </div>
         </div>
-        <p class="hint">Only needed if more than one frame is on this invoice — e.g. "Fitz" and "Grey."</p>
+        <p class="hint">Only needed if more than one frame (or a frame and its clip) is on this invoice — e.g. "Fitz" and "Grey."</p>
       </div>
 
       <div class="claim-item" data-claim-index="2" hidden>
@@ -461,8 +479,16 @@
             <label for="color-2">Color</label>
             <input type="text" id="color-2" class="color" data-index="2" autocomplete="off">
           </div>
+          <div class="field">
+            <label for="productType-2">Frame or clip?</label>
+            <select id="productType-2" class="productType" data-index="2">
+              <option value="">Not sure / not applicable</option>
+              <option value="OPTICAL">Frame</option>
+              <option value="CLIP">Clip</option>
+            </select>
+          </div>
         </div>
-        <p class="hint">Only needed if more than one frame is on this invoice — e.g. "Fitz" and "Grey."</p>
+        <p class="hint">Only needed if more than one frame (or a frame and its clip) is on this invoice — e.g. "Fitz" and "Grey."</p>
       </div>
 
     </div>
@@ -541,6 +567,7 @@
     block.querySelector('.identifierValue').value = '';
     block.querySelector('.styleName').value = '';
     block.querySelector('.color').value = '';
+    block.querySelector('.productType').value = '';
     block.classList.remove('invalid');
     visibleCount--;
     updateAddButtonVisibility();
@@ -632,6 +659,7 @@
         documentNumber: block.querySelector('.identifierValue').value.trim(),
         styleName: block.querySelector('.styleName').value.trim(),
         color: block.querySelector('.color').value.trim(),
+        productType: block.querySelector('.productType').value,
       };
       items.push(item);
     }

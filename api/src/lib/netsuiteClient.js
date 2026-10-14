@@ -219,6 +219,11 @@ async function getInvoiceLineItems(invoiceId) {
       description: '',
       style: line.custcol_modo_item_style || '',
       color: colorName(line.custcol_modo_color) || colorName(line.custcol_sps_productcolorcode),
+      // Plain string directly on the line itself — "OPTICAL" for the frame,
+      // "CLIP" for its separate magnetic sun clip. This is what actually
+      // distinguishes a frame from its clip when they otherwise share
+      // identical style and color.
+      productType: line.custcol_modo_prod_type || '',
       // The actual historical price paid on this specific invoice line —
       // credits must match this exactly, never NetSuite's current default
       // pricing, which can drift from what the customer actually paid.

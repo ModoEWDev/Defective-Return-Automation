@@ -105,7 +105,7 @@ async function getLastPaidPrice(accountNumber, sku) {
     ORDER BY t.trandate DESC
   `);
 
-  return rows.length ? rows[0].amount : null;
+  return rows.length ? Number(rows[0].amount) : null;
 }
 
 async function getSalesRep(accountNumber) {

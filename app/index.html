@@ -375,6 +375,26 @@
   .result-card.error { background: var(--error-bg); }
   .result-card.error .result-title { color: var(--error); }
 
+  .footer {
+    margin-top: 48px;
+    padding-top: 20px;
+    border-top: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+
+  .footer-label {
+    font-size: 12px;
+    color: var(--text-soft);
+  }
+
+  .footer-logo {
+    height: 13px;
+    width: auto;
+    opacity: 0.55;
+  }
+
   .try-again {
     display: inline-block;
     margin-top: 6px;
@@ -542,6 +562,11 @@
 
   <div class="results" id="results" role="status" aria-live="polite"></div>
   <button type="button" class="try-again" id="try-again" hidden>Submit another claim</button>
+
+  <div class="footer">
+    <span class="footer-label">Part of</span>
+    <img class="footer-logo" src="assets/house-of-modo-logo.svg" alt="House of Modo">
+  </div>
 
 </main>
 

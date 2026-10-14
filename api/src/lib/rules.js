@@ -16,7 +16,7 @@ const KATHRYN_LAND_REP_ID = '396';
 const MAX_CLAIMS_PER_DAY = 3;
 
 async function evaluateClaim(claim, context) {
-  const { invoiceNumber, poNumber, accountNumber, styleName, color } = claim;
+  const { invoiceNumber, poNumber, accountNumber, styleName, color, description } = claim;
 
   // Gate 1 — daily claim limit. Checked before anything else so a capped
   // account doesn't consume a NetSuite lookup for nothing.
@@ -30,10 +30,6 @@ async function evaluateClaim(claim, context) {
       },
     };
   }
-
-  // Record this submission immediately so it counts toward today's cap
-  // regardless of how it's ultimately decided.
-  await recordClaimSubmission(accountNumber);
 
   // Gate 2 — Kathryn Land's accounts are always a human decision.
   const salesRep = await getSalesRep(accountNumber);
@@ -100,12 +96,15 @@ async function evaluateClaim(claim, context) {
     };
   }
 
-  // If there's only one item total — whether that's one invoice with one
-  // line, or several invoices that together only ever produced one item —
-  // that's unambiguously the one, no matching needed.
+  // If there's only one item total AND the customer didn't type a
+  // style/color at all, that's unambiguously the one — nothing to check.
+  // But if they DID provide something, even for a single-item invoice, it
+  // still has to actually match — leaving the field blank is fine (they
+  // may not know it), but typing in something wrong should not be
+  // silently waved through.
   let resolvedItem;
 
-  if (allItems.length === 1) {
+  if (allItems.length === 1 && !styleName && !color) {
     resolvedItem = allItems[0];
   } else {
     const tokens = `${styleName || ''} ${color || ''}`
@@ -122,10 +121,24 @@ async function evaluateClaim(claim, context) {
       resolvedItem = matches[0];
     } else {
       // Zero or multiple literal matches — let Claude use judgment on
-      // abbreviations/informal naming before giving up and escalating.
-      resolvedItem = await matchItemWithClaude(allItems, styleName, color, context);
+      // abbreviations/informal naming before giving up.
+      const wasGenuinelyAmbiguous = matches.length > 1;
+      resolvedItem = await matchItemWithClaude(allItems, styleName, color, description, context);
 
       if (!resolvedItem) {
+        if (wasGenuinelyAmbiguous) {
+          // More than one item shares the same style/color description
+          // (e.g. a frame and its matching clip) — no amount of
+          // double-checking and resubmitting the same correct info would
+          // ever resolve this, so it needs a human, not a customer retry.
+          return {
+            outcome: 'escalate',
+            details: {
+              reason:
+                'More than one item on this invoice matches the same style/color description — needs a human to confirm which one.',
+            },
+          };
+        }
         return {
           outcome: 'invalid',
           details: { reason: "The style/color entered can't be found on this invoice. Please double-check it and submit the claim again." },
@@ -173,6 +186,11 @@ async function evaluateClaim(claim, context) {
     itemInternalId: resolvedItem.itemInternalId,
     amount: lastPaidPrice !== null ? lastPaidPrice : resolvedItem.amount,
   });
+
+  // Only an actual approved credit counts toward the daily cap — a claim
+  // that was invalid, escalated, or offered a discount instead never
+  // consumed one of the account's 3 allowed claims today.
+  await recordClaimSubmission(accountNumber);
 
   return {
     outcome: 'approved',

@@ -93,16 +93,22 @@ function fallbackMessage(result) {
  * line items — not an open-ended guess. Only returns a match when Claude is
  * confident; anything else should still escalate, same as before.
  */
-async function matchItemWithClaude(lineItems, styleName, color, context) {
+async function matchItemWithClaude(lineItems, styleName, color, description, context) {
   const itemList = lineItems
     .map((item, i) => `${i}: style "${item.style}", color "${item.color}" (SKU "${item.sku}")`)
     .join('\n');
 
   const prompt =
-    `A customer described a frame as style "${styleName || ''}" and color "${color || ''}". ` +
+    `A customer described a frame as style "${styleName || ''}" and color "${color || ''}", ` +
+    `and described their issue as: "${description || ''}". ` +
     `Here are the items on their invoice, with their actual recorded style and color:\n${itemList}\n\n` +
     'Which one (if any) are they most likely describing? Account for minor typos, abbreviations, ' +
     'or the customer giving only part of a multi-word color (e.g. "pink" for "Crystal Pink"). ' +
+    'Some items share identical style and color but differ in what they physically are — e.g. a ' +
+    'frame versus its separate magnetic sun clip, often distinguishable only by a suffix letter in ' +
+    'the SKU (like a trailing F vs C). If the style/color alone can\'t tell two such items apart, check ' +
+    'whether the issue description mentions which one they mean (e.g. "the clip" or "the sun clip" ' +
+    'points at the clip-type SKU, not the frame). ' +
     'Respond with ONLY a JSON object, no other text: ' +
     '{"matchIndex": <number or null>, "confidence": "high" | "medium" | "low"}. ' +
     'Only use "high" confidence if you are genuinely sure — this decision affects a real credit.';

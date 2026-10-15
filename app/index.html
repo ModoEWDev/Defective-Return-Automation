@@ -335,26 +335,6 @@
   .result-card.error { background: var(--error-bg); }
   .result-card.error .result-title { color: var(--error); }
 
-  .footer {
-    margin-top: 48px;
-    padding-top: 24px;
-    border-top: 1px solid var(--border);
-  }
-
-  .footer-label {
-    display: block;
-    font-size: 13px;
-    color: var(--text-soft);
-    margin-bottom: 14px;
-  }
-
-  .footer-logo {
-    display: block;
-    width: 100%;
-    height: auto;
-    opacity: 0.6;
-  }
-
   .try-again {
     display: inline-block;
     margin-top: 6px;
@@ -420,7 +400,6 @@
             </select>
           </div>
         </div>
-        <p class="hint">Only needed if more than one frame (or a frame and its clip) is on this invoice — e.g. "Fitz" and "Grey."</p>
       </div>
 
       <div class="claim-item" data-claim-index="1" hidden>
@@ -454,7 +433,6 @@
             </select>
           </div>
         </div>
-        <p class="hint">Only needed if more than one frame (or a frame and its clip) is on this invoice — e.g. "Fitz" and "Grey."</p>
       </div>
 
       <div class="claim-item" data-claim-index="2" hidden>
@@ -488,7 +466,6 @@
             </select>
           </div>
         </div>
-        <p class="hint">Only needed if more than one frame (or a frame and its clip) is on this invoice — e.g. "Fitz" and "Grey."</p>
       </div>
 
     </div>
@@ -500,7 +477,6 @@
     <div class="field" id="field-description">
       <label for="description">Brief description of issue</label>
       <textarea id="description" name="description" required></textarea>
-      <p class="hint">If your order included a separate sun clip, mention whether it's the frame or the clip that's defective.</p>
       <p class="field-error">Briefly describe what's wrong with the frame(s).</p>
     </div>
 
@@ -519,11 +495,6 @@
 
   <div class="results" id="results" role="status" aria-live="polite"></div>
   <button type="button" class="try-again" id="try-again" hidden>Submit another claim</button>
-
-  <div class="footer">
-    <span class="footer-label">Part of</span>
-    <img class="footer-logo" src="assets/house-of-modo-logo.svg" alt="House of Modo">
-  </div>
 
 </main>
 
@@ -607,7 +578,11 @@
   function fileToBase64(file) {
     return new Promise((resolve, reject) => {
       const reader = new FileReader();
-      reader.onload = () => resolve(reader.result.split(',')[1] || '');
+      reader.onload = () => {
+        const [prefix, data] = reader.result.split(',');
+        const mimeType = (prefix.match(/data:(.*);base64/) || [])[1] || file.type || 'image/jpeg';
+        resolve({ base64: data || '', mimeType });
+      };
       reader.onerror = reject;
       reader.readAsDataURL(file);
     });
@@ -708,7 +683,9 @@
     };
 
     try {
-      payload.photoBase64 = await fileToBase64(photoInput.files[0]);
+      const photo = await fileToBase64(photoInput.files[0]);
+      payload.photoBase64 = photo.base64;
+      payload.photoMimeType = photo.mimeType;
 
       const res = await fetch('/api/claims', {
         method: 'POST',

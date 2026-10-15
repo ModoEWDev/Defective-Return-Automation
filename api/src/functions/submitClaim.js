@@ -96,14 +96,7 @@ app.http('submitClaim', {
         });
       }
 
-      return {
-        status: 200,
-        jsonBody: {
-          results,
-          // TEMPORARY DEBUG — remove once confirmed working.
-          debugPhotoCheck: photoCheck,
-        },
-      };
+      return { status: 200, jsonBody: { results } };
     } catch (err) {
       context.error('submitClaim failed', err);
       return {

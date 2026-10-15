@@ -69,8 +69,10 @@ async function isPhotoOfEyewear(photoBase64, photoMimeType, context) {
                   'Does this photo clearly show an eyeglass frame, sunglasses frame, a magnetic ' +
                   'clip-on sun clip, or a clearly identifiable part of one (temple, hinge, lens, ' +
                   'nosepiece, etc.)? Say false if it shows something unrelated, is blank/unreadable, ' +
-                  'or you genuinely cannot tell. Respond with ONLY a JSON object, no other text: ' +
-                  '{"isEyewear": true or false}',
+                  'or you genuinely cannot tell. Separately, if it is NOT eyewear, check whether it ' +
+                  'clearly shows a car — for a lighthearted rejection message. Respond with ONLY a ' +
+                  'JSON object, no other text: ' +
+                  '{"isEyewear": true or false, "funMatch": "car" | null}',
               },
             ],
           },
@@ -88,11 +90,18 @@ async function isPhotoOfEyewear(photoBase64, photoMimeType, context) {
       .trim();
 
     const parsed = JSON.parse(text);
-    return parsed.isEyewear !== false; // default to true unless explicitly false
+    return {
+      isEyewear: parsed.isEyewear !== false, // default to true unless explicitly false
+      funMatch: parsed.funMatch || null,
+    };
   } catch (err) {
     context.error('isPhotoOfEyewear check failed, allowing claim through', err);
-    return true;
+    return { isEyewear: true, funMatch: null };
   }
 }
 
-module.exports = { getCustomerMessage, isPhotoOfEyewear };
+const FUN_MESSAGES = {
+  car: 'Nice ride! Unfortunately we can only process warranty claims for eyewear, not vehicles. 🚗',
+};
+
+module.exports = { getCustomerMessage, isPhotoOfEyewear, FUN_MESSAGES };

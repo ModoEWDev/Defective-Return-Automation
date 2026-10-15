@@ -1,6 +1,6 @@
 const { app } = require('@azure/functions');
 const { evaluateClaim } = require('../lib/rules');
-const { draftCustomerMessage, isPhotoOfEyewear } = require('../lib/claude');
+const { getCustomerMessage, isPhotoOfEyewear } = require('../lib/claude');
 
 const ALWAYS_REQUIRED_FIELDS = ['accountNumber', 'description', 'photoBase64'];
 const MAX_ITEMS_PER_SUBMISSION = 3;
@@ -46,8 +46,19 @@ app.http('submitClaim', {
 
     const { accountNumber, description, photoBase64, photoMimeType } = body;
 
-    const photoCheck = await isPhotoOfEyewear(photoBase64, photoMimeType, context);
-    if (!photoCheck.isEyewear) {
+    const SUPPORTED_PHOTO_TYPES = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'];
+    if (!SUPPORTED_PHOTO_TYPES.includes(photoMimeType)) {
+      return {
+        status: 400,
+        jsonBody: {
+          error:
+            "Unfortunately, we can't accept this type of file — we only accept JPEG, PNG, GIF, or WEBP. Please resubmit your claim using one of those file types.",
+        },
+      };
+    }
+
+    const photoLooksLikeEyewear = await isPhotoOfEyewear(photoBase64, photoMimeType, context);
+    if (!photoLooksLikeEyewear) {
       return {
         status: 400,
         jsonBody: {
@@ -74,7 +85,7 @@ app.http('submitClaim', {
           },
           context
         );
-        const message = await draftCustomerMessage(result, context);
+        const message = getCustomerMessage(result);
 
         results.push({
           identifier: `Document ${item.documentNumber}`,
@@ -84,14 +95,7 @@ app.http('submitClaim', {
         });
       }
 
-      return {
-        status: 200,
-        jsonBody: {
-          results,
-          // TEMPORARY DEBUG — remove once confirmed working.
-          debugPhotoCheck: photoCheck.errored ? `ERRORED (failed open): ${photoCheck.debugMessage}` : 'ran normally',
-        },
-      };
+      return { status: 200, jsonBody: { results } };
     } catch (err) {
       context.error('submitClaim failed', err);
       return {

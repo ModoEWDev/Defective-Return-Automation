@@ -11,14 +11,13 @@ const {
   createCreditMemo,
 } = require('./netsuiteClient');
 const { getClaimCountToday, recordClaimSubmission } = require('./claimTracking');
-const { matchItemWithClaude } = require('./claude');
 
 const WARRANTY_MONTHS = 30; // 2-year warranty + 6-month grace period
 const KATHRYN_LAND_REP_ID = '396';
 const MAX_CLAIMS_PER_DAY = 3;
 
 async function evaluateClaim(claim, context) {
-  const { documentNumber, styleName, color, productType, description } = claim;
+  const { documentNumber, styleName, color, productType } = claim;
 
   // Gate 0 — resolve whatever account number the customer actually typed
   // to the real one on file. Customers very commonly type only part of it
@@ -159,31 +158,22 @@ async function evaluateClaim(claim, context) {
 
       if (matches.length === 1) {
         resolvedItem = matches[0];
+      } else if (matches.length > 1) {
+        // More than one item shares the same style/color description —
+        // typically a frame and its matching clip. Tell them exactly what
+        // to pick/add so they can resolve it themselves on resubmission.
+        return {
+          outcome: 'invalid',
+          details: {
+            reason:
+              "This invoice has both a frame and a matching clip, and it's not clear which one this claim is about. Please select Frame or Clip in the Product Type field (or specify it in the issue description) and submit your claim again. If both are defective, submit them as two separate claims using \"Add another claim,\" one for the frame and one for the clip.",
+          },
+        };
       } else {
-      // Zero or multiple literal matches — let Claude use judgment on
-      // abbreviations/informal naming before giving up.
-      const wasGenuinelyAmbiguous = matches.length > 1;
-      resolvedItem = await matchItemWithClaude(itemsToMatch, styleName, color, description, context);
-
-      if (!resolvedItem) {
-        if (wasGenuinelyAmbiguous) {
-          // More than one item shares the same style/color description —
-          // typically a frame and its matching clip. Rather than
-          // escalating, tell them exactly what to pick/add so they can
-          // resolve it themselves on resubmission.
-          return {
-            outcome: 'invalid',
-            details: {
-              reason:
-                "This invoice has both a frame and a matching clip, and it's not clear which one this claim is about. Please select Frame or Clip in the Product Type field (or specify it in the issue description) and submit your claim again. If both are defective, submit them as two separate claims using \"Add another claim,\" one for the frame and one for the clip.",
-            },
-          };
-        }
         return {
           outcome: 'invalid',
           details: { reason: "The style/color entered can't be found on this invoice. Please double-check it and submit the claim again." },
         };
-      }
     }
   }
   }

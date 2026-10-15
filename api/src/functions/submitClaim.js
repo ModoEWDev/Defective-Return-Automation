@@ -1,6 +1,6 @@
 const { app } = require('@azure/functions');
 const { evaluateClaim } = require('../lib/rules');
-const { getCustomerMessage, isPhotoOfEyewear } = require('../lib/claude');
+const { getCustomerMessage, isPhotoOfEyewear, FUN_MESSAGES } = require('../lib/claude');
 
 const ALWAYS_REQUIRED_FIELDS = ['accountNumber', 'description', 'photoBase64'];
 const MAX_ITEMS_PER_SUBMISSION = 3;
@@ -57,12 +57,13 @@ app.http('submitClaim', {
       };
     }
 
-    const photoLooksLikeEyewear = await isPhotoOfEyewear(photoBase64, photoMimeType, context);
-    if (!photoLooksLikeEyewear) {
+    const photoCheck = await isPhotoOfEyewear(photoBase64, photoMimeType, context);
+    if (!photoCheck.isEyewear) {
       return {
         status: 400,
         jsonBody: {
           error:
+            FUN_MESSAGES[photoCheck.funMatch] ||
             "We couldn't recognize this photo as a frame or clip. Please upload a clear photo of the item and submit your claim again.",
         },
       };
@@ -95,7 +96,14 @@ app.http('submitClaim', {
         });
       }
 
-      return { status: 200, jsonBody: { results } };
+      return {
+        status: 200,
+        jsonBody: {
+          results,
+          // TEMPORARY DEBUG — remove once confirmed working.
+          debugPhotoCheck: photoCheck,
+        },
+      };
     } catch (err) {
       context.error('submitClaim failed', err);
       return {

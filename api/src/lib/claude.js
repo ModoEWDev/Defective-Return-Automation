@@ -93,10 +93,14 @@ async function isPhotoOfEyewear(photoBase64, photoMimeType, context) {
     return {
       isEyewear: parsed.isEyewear !== false, // default to true unless explicitly false
       funMatch: parsed.funMatch || null,
+      // TEMPORARY DEBUG — remove once confirmed working.
+      debugRawResponse: text,
+      debugErrored: false,
     };
   } catch (err) {
     context.error('isPhotoOfEyewear check failed, allowing claim through', err);
-    return { isEyewear: true, funMatch: null };
+    // TEMPORARY DEBUG — remove once confirmed working.
+    return { isEyewear: true, funMatch: null, debugErrored: true, debugMessage: err.message };
   }
 }
 

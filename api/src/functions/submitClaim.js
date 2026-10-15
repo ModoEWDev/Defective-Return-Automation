@@ -1,6 +1,6 @@
 const { app } = require('@azure/functions');
 const { evaluateClaim } = require('../lib/rules');
-const { draftCustomerMessage } = require('../lib/claude');
+const { draftCustomerMessage, isPhotoOfEyewear } = require('../lib/claude');
 
 const ALWAYS_REQUIRED_FIELDS = ['accountNumber', 'description', 'photoBase64'];
 const MAX_ITEMS_PER_SUBMISSION = 3;
@@ -44,7 +44,18 @@ app.http('submitClaim', {
       }
     }
 
-    const { accountNumber, description, photoBase64 } = body;
+    const { accountNumber, description, photoBase64, photoMimeType } = body;
+
+    const photoLooksLikeEyewear = await isPhotoOfEyewear(photoBase64, photoMimeType, context);
+    if (!photoLooksLikeEyewear) {
+      return {
+        status: 400,
+        jsonBody: {
+          error:
+            "We couldn't recognize this photo as a frame or clip. Please upload a clear photo of the item and submit your claim again.",
+        },
+      };
+    }
 
     try {
       // Processed sequentially, not in parallel — the daily claim cap needs

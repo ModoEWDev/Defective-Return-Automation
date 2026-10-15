@@ -95,20 +95,23 @@ function fallbackMessage(result) {
  */
 async function matchItemWithClaude(lineItems, styleName, color, description, context) {
   const itemList = lineItems
-    .map((item, i) => `${i}: style "${item.style}", color "${item.color}" (SKU "${item.sku}")`)
+    .map(
+      (item, i) =>
+        `${i}: style "${item.style}", color "${item.color}", type "${item.productType}" (SKU "${item.sku}")`
+    )
     .join('\n');
 
   const prompt =
     `A customer described a frame as style "${styleName || ''}" and color "${color || ''}", ` +
     `and described their issue as: "${description || ''}". ` +
-    `Here are the items on their invoice, with their actual recorded style and color:\n${itemList}\n\n` +
+    `Here are the items on their invoice, with their actual recorded style, color, and product ` +
+    `type:\n${itemList}\n\n` +
     'Which one (if any) are they most likely describing? Account for minor typos, abbreviations, ' +
     'or the customer giving only part of a multi-word color (e.g. "pink" for "Crystal Pink"). ' +
-    'Some items share identical style and color but differ in what they physically are — e.g. a ' +
-    'frame versus its separate magnetic sun clip, often distinguishable only by a suffix letter in ' +
-    'the SKU (like a trailing F vs C). If the style/color alone can\'t tell two such items apart, check ' +
-    'whether the issue description mentions which one they mean (e.g. "the clip" or "the sun clip" ' +
-    'points at the clip-type SKU, not the frame). ' +
+    'Some items share identical style and color but differ in product type — e.g. "OPTICAL" is the ' +
+    'frame itself, "CLIP" is its separate magnetic sun clip. If the style/color alone can\'t tell two ' +
+    'such items apart, use the product type together with whatever the issue description says (e.g. ' +
+    'mentioning "the clip" or "sun clip" points at the CLIP-type item, not the frame). ' +
     'Respond with ONLY a JSON object, no other text: ' +
     '{"matchIndex": <number or null>, "confidence": "high" | "medium" | "low"}. ' +
     'Only use "high" confidence if you are genuinely sure — this decision affects a real credit.';
@@ -150,4 +153,71 @@ async function matchItemWithClaude(lineItems, styleName, color, description, con
   }
 }
 
-module.exports = { draftCustomerMessage, matchItemWithClaude };
+/**
+ * Confirms the uploaded photo actually shows eyewear hardware (a frame,
+ * sunglasses, a magnetic clip, or a clearly identifiable part of one) —
+ * not a true defect judgment (that's a much harder, less reliable call,
+ * deliberately not automated here), just basic object recognition: is
+ * this even a picture of the right kind of thing at all.
+ *
+ * Fails OPEN on any error (network issue, bad JSON back, etc.) — a
+ * transient problem with this check should never block a legitimate
+ * claim; it only ever blocks on an actual confident "no."
+ */
+async function isPhotoOfEyewear(photoBase64, photoMimeType, context) {
+  try {
+    const response = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: {
+        'x-api-key': ANTHROPIC_API_KEY,
+        'anthropic-version': '2023-06-01',
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        model: MODEL,
+        max_tokens: 100,
+        messages: [
+          {
+            role: 'user',
+            content: [
+              {
+                type: 'image',
+                source: {
+                  type: 'base64',
+                  media_type: photoMimeType || 'image/jpeg',
+                  data: photoBase64,
+                },
+              },
+              {
+                type: 'text',
+                text:
+                  'Does this photo clearly show an eyeglass frame, sunglasses frame, a magnetic ' +
+                  'clip-on sun clip, or a clearly identifiable part of one (temple, hinge, lens, ' +
+                  'nosepiece, etc.)? Say false if it shows something unrelated, is blank/unreadable, ' +
+                  'or you genuinely cannot tell. Respond with ONLY a JSON object, no other text: ' +
+                  '{"isEyewear": true or false}',
+              },
+            ],
+          },
+        ],
+      }),
+    });
+
+    if (!response.ok) throw new Error(`Claude API error: ${response.status}`);
+
+    const data = await response.json();
+    const text = data.content
+      .filter((block) => block.type === 'text')
+      .map((block) => block.text)
+      .join('')
+      .trim();
+
+    const parsed = JSON.parse(text);
+    return parsed.isEyewear !== false; // default to true unless explicitly false
+  } catch (err) {
+    context.error('isPhotoOfEyewear check failed, allowing claim through', err);
+    return true;
+  }
+}
+
+module.exports = { draftCustomerMessage, matchItemWithClaude, isPhotoOfEyewear };

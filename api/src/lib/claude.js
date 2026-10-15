@@ -213,10 +213,11 @@ async function isPhotoOfEyewear(photoBase64, photoMimeType, context) {
       .trim();
 
     const parsed = JSON.parse(text);
-    return parsed.isEyewear !== false; // default to true unless explicitly false
+    return { isEyewear: parsed.isEyewear !== false, errored: false };
   } catch (err) {
     context.error('isPhotoOfEyewear check failed, allowing claim through', err);
-    return true;
+    // TEMPORARY DEBUG — remove once confirmed working.
+    return { isEyewear: true, errored: true, debugMessage: err.message };
   }
 }
 

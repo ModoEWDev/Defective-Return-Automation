@@ -46,8 +46,8 @@ app.http('submitClaim', {
 
     const { accountNumber, description, photoBase64, photoMimeType } = body;
 
-    const photoLooksLikeEyewear = await isPhotoOfEyewear(photoBase64, photoMimeType, context);
-    if (!photoLooksLikeEyewear) {
+    const photoCheck = await isPhotoOfEyewear(photoBase64, photoMimeType, context);
+    if (!photoCheck.isEyewear) {
       return {
         status: 400,
         jsonBody: {
@@ -55,6 +55,12 @@ app.http('submitClaim', {
             "We couldn't recognize this photo as a frame or clip. Please upload a clear photo of the item and submit your claim again.",
         },
       };
+    }
+    if (photoCheck.errored) {
+      // TEMPORARY DEBUG — remove once confirmed working. This claim is
+      // still allowed through (fail-open), but we flag that the actual
+      // check never ran, rather than genuinely passing.
+      context.error('Photo check errored and failed open', photoCheck.debugMessage);
     }
 
     try {
@@ -84,7 +90,14 @@ app.http('submitClaim', {
         });
       }
 
-      return { status: 200, jsonBody: { results } };
+      return {
+        status: 200,
+        jsonBody: {
+          results,
+          // TEMPORARY DEBUG — remove once confirmed working.
+          debugPhotoCheck: photoCheck.errored ? `ERRORED (failed open): ${photoCheck.debugMessage}` : 'ran normally',
+        },
+      };
     } catch (err) {
       context.error('submitClaim failed', err);
       return {

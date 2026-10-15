@@ -3,6 +3,8 @@ const {
   resolveAccountNumber,
   getInvoiceLineItems,
   getLastPaidPrice,
+  findSiblingComponentSku,
+  getReferenceComponentPrice,
   getSalesRep,
   getUnitsPurchased,
   getUnitsCredited,
@@ -107,48 +109,57 @@ async function evaluateClaim(claim, context) {
     };
   }
 
-  // If the customer picked a product type (Frame/Clip), narrow to only
-  // items of that exact type first — this is the deterministic signal
-  // that actually distinguishes a frame from its otherwise-identical
-  // clip, and resolves the common case immediately without ever needing
-  // style/color or Claude's judgment at all.
-  const itemsToMatch = productType
-    ? allItems.filter((item) => item.productType === productType)
-    : allItems;
-
-  if (productType && !itemsToMatch.length) {
-    return {
-      outcome: 'invalid',
-      details: {
-        reason: `No ${productType === 'CLIP' ? 'clip' : 'frame'} was found on this invoice matching that selection. Please double-check and submit your claim again.`,
-      },
-    };
-  }
-
-  // If there's only one item (after any product-type filtering) AND the
-  // customer didn't type a style/color at all, that's unambiguously the
-  // one — nothing to check. But if they DID provide something, even for a
-  // single-item invoice, it still has to actually match — leaving the
-  // field blank is fine (they may not know it), but typing in something
-  // wrong should not be silently waved through.
+  // If there's only one item total AND the customer didn't type a
+  // style/color at all, that's unambiguously the one — no matching
+  // needed, and the Frame/Clip dropdown's selection is irrelevant here.
+  // That dropdown has no "doesn't apply" option (it always has some
+  // value), so it must only ever be consulted when there's genuine
+  // ambiguity to resolve — never used to override a clean single-item
+  // case the customer had no reason to think about.
   let resolvedItem;
 
-  if (itemsToMatch.length === 1 && !styleName && !color) {
-    resolvedItem = itemsToMatch[0];
+  if (allItems.length === 1 && !styleName && !color) {
+    resolvedItem = allItems[0];
   } else {
-    const tokens = `${styleName || ''} ${color || ''}`
-      .toLowerCase()
-      .split(/\s+/)
-      .filter((t) => t.length > 1);
+    // Genuine ambiguity (or the customer typed style/color that still
+    // needs verifying) — now the product type selection actually matters.
+    // Narrow to items of that exact type first; this is the deterministic
+    // signal that actually distinguishes a frame from its otherwise-
+    // identical clip, and resolves the common case without ever needing
+    // style/color or Claude's judgment at all.
+    // A substring check, not exact equality — some items are sold as a
+    // combined "OPTICAL & CLIP SET" (one SKU, both parts bundled
+    // together), which should correctly match either a Frame or a Clip
+    // selection, not neither.
+    const itemsToMatch = productType
+      ? allItems.filter((item) => item.productType.includes(productType))
+      : allItems;
 
-    const matches = itemsToMatch.filter((item) => {
-      const haystack = `${item.style} ${item.color}`.toLowerCase();
-      return tokens.length > 0 && tokens.every((t) => haystack.includes(t));
-    });
+    if (productType && !itemsToMatch.length) {
+      return {
+        outcome: 'invalid',
+        details: {
+          reason: `No ${productType === 'CLIP' ? 'clip' : 'frame'} was found on this invoice matching that selection. Please double-check and submit your claim again.`,
+        },
+      };
+    }
 
-    if (matches.length === 1) {
-      resolvedItem = matches[0];
+    if (itemsToMatch.length === 1 && !styleName && !color) {
+      resolvedItem = itemsToMatch[0];
     } else {
+      const tokens = `${styleName || ''} ${color || ''}`
+        .toLowerCase()
+        .split(/\s+/)
+        .filter((t) => t.length > 1);
+
+      const matches = itemsToMatch.filter((item) => {
+        const haystack = `${item.style} ${item.color}`.toLowerCase();
+        return tokens.length > 0 && tokens.every((t) => haystack.includes(t));
+      });
+
+      if (matches.length === 1) {
+        resolvedItem = matches[0];
+      } else {
       // Zero or multiple literal matches — let Claude use judgment on
       // abbreviations/informal naming before giving up.
       const wasGenuinelyAmbiguous = matches.length > 1;
@@ -174,6 +185,7 @@ async function evaluateClaim(claim, context) {
         };
       }
     }
+  }
   }
 
   const invoice = resolvedItem.invoice;
@@ -204,16 +216,44 @@ async function evaluateClaim(claim, context) {
     };
   }
 
-  // All gates clear — post the credit. Company policy credits the *last
-  // paid price* of this exact SKU, which may differ from whatever this
-  // particular referenced invoice shows if the account bought it more than
-  // once at different prices over time.
-  const lastPaidPrice = await getLastPaidPrice(accountNumber, sku);
+  // If this item is a combined "OPTICAL & CLIP SET" and the customer
+  // specified just one part (Frame or Clip), credit only that component —
+  // under its own standalone item number, not the combo SKU — rather than
+  // crediting the full set. Verified directly against real items: style
+  // name and the base color text are consistent across a Set and its
+  // standalone Frame/Clip siblings, differing only by a suffix.
+  let creditItemId = resolvedItem.itemInternalId;
+  let creditSku = sku;
+  const isComboItem = resolvedItem.productType !== 'OPTICAL' && resolvedItem.productType !== 'CLIP';
+
+  if (isComboItem && productType) {
+    const sibling = await findSiblingComponentSku(resolvedItem.style, resolvedItem.color, productType);
+    if (sibling) {
+      creditItemId = sibling.itemInternalId;
+      creditSku = sibling.sku;
+    }
+  }
+
+  // Company policy credits the *last paid price* of the exact item being
+  // credited, which may differ from whatever this particular referenced
+  // invoice shows if the account bought it more than once at different
+  // prices over time. A component split out of a Set, though, was often
+  // never purchased on its own — if so, there's no real history to use,
+  // so a verified reference price level (confirmed to match real sold
+  // component prices) is used instead.
+  let creditAmount = await getLastPaidPrice(accountNumber, creditSku);
+  if (creditAmount === null) {
+    creditAmount =
+      creditItemId !== resolvedItem.itemInternalId
+        ? await getReferenceComponentPrice(creditItemId)
+        : resolvedItem.amount;
+  }
+
   const creditMemo = await createCreditMemo({
     invoiceId: invoice.id,
     accountNumber,
-    itemInternalId: resolvedItem.itemInternalId,
-    amount: lastPaidPrice !== null ? lastPaidPrice : resolvedItem.amount,
+    itemInternalId: creditItemId,
+    amount: creditAmount,
   });
 
   // Only an actual approved credit counts toward the daily cap — a claim
@@ -223,7 +263,7 @@ async function evaluateClaim(claim, context) {
 
   return {
     outcome: 'approved',
-    details: { creditMemoId: creditMemo.id, invoiceNumber: invoice.tranid, sku },
+    details: { creditMemoId: creditMemo.id, invoiceNumber: invoice.tranid, sku: creditSku },
   };
 }
 

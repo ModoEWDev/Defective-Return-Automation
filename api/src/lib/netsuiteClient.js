@@ -136,6 +136,49 @@ async function getLastPaidPrice(accountNumber, sku) {
   return rows.length ? Number(rows[0].amount) : null;
 }
 
+/**
+ * Finds the standalone Frame or Clip item that corresponds to one part of
+ * a combined "OPTICAL & CLIP SET" item — e.g. given the Set's own style
+ * name and color ("DARK GREY/SPACE GREY - SET"), finds the standalone
+ * Clip SKU ("DARK GREY/SPACE GREY - SUN CLIP") or Frame SKU ("DARK GREY/
+ * SPACE GREY") sharing the same style and base color. Verified directly
+ * against real items before building this: style name is consistent
+ * across siblings, and the color field consistently shares the same base
+ * text with only a suffix differing ("- SET", "- SUN CLIP", or nothing).
+ */
+async function findSiblingComponentSku(styleName, setColor, targetProductType) {
+  // Strip the known combo-indicating suffix to get the shared base color.
+  const baseColor = setColor.replace(/\s*-\s*SET$/i, '').trim();
+
+  const [sibling] = await suiteQL(`
+    SELECT i.id AS itemid, i.itemid AS sku
+    FROM item i
+    JOIN customlist_modo_product_type pt ON pt.id = i.custitem_modo_product_type
+    WHERE i.custitem_modo_style_name = '${escapeSql(styleName)}'
+      AND i.custitem_modo_color LIKE '${escapeSql(baseColor)}%'
+      AND pt.name = '${escapeSql(targetProductType)}'
+  `);
+
+  if (!sibling) return null;
+  return { itemInternalId: sibling.itemid, sku: sibling.sku };
+}
+
+/**
+ * Fallback reference price when a component was never purchased on its
+ * own (no real "last paid price" exists for it) — used only for crediting
+ * just one part of a combo Set item. Price level 7 ("20% Discount")
+ * was verified directly against real sold prices before relying on it:
+ * confirmed to exactly match both a frame and clip component's actual
+ * historical prices in a real decomposed example.
+ */
+async function getReferenceComponentPrice(itemInternalId, priceLevel = 7) {
+  const [row] = await suiteQL(`
+    SELECT unitprice FROM pricing
+    WHERE item = ${Number(itemInternalId)} AND pricelevel = ${Number(priceLevel)} AND currency = 1
+  `);
+  return row ? Number(row.unitprice) : null;
+}
+
 async function getSalesRep(accountNumber) {
   const rows = await suiteQL(`
     SELECT salesrep
@@ -306,6 +349,8 @@ module.exports = {
   resolveAccountNumber,
   getInvoiceLineItems,
   getLastPaidPrice,
+  findSiblingComponentSku,
+  getReferenceComponentPrice,
   getSalesRep,
   getUnitsPurchased,
   getUnitsCredited,

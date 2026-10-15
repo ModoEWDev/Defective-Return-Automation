@@ -483,10 +483,11 @@
     <div class="field" id="field-photo">
       <label for="photo">Photo of the frame or clip</label>
       <div class="upload" id="upload-zone" tabindex="0">
-        <input type="file" id="photo" name="photo" accept="image/*" required>
+        <input type="file" id="photo" name="photo" accept="image/jpeg,image/png,image/gif,image/webp" required>
         <div class="upload-label" id="upload-label"><strong>Choose a photo</strong> or drag one here</div>
         <div class="preview" id="preview" hidden><img id="preview-img" alt="Selected photo preview"></div>
       </div>
+      <p class="hint">Accepted file types: JPEG, PNG, GIF, or WEBP.</p>
       <p class="field-error">Add a photo of the frame or clip.</p>
     </div>
 

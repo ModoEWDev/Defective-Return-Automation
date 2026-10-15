@@ -56,12 +56,6 @@ app.http('submitClaim', {
         },
       };
     }
-    if (photoCheck.errored) {
-      // TEMPORARY DEBUG — remove once confirmed working. This claim is
-      // still allowed through (fail-open), but we flag that the actual
-      // check never ran, rather than genuinely passing.
-      context.error('Photo check errored and failed open', photoCheck.debugMessage);
-    }
 
     try {
       // Processed sequentially, not in parallel — the daily claim cap needs

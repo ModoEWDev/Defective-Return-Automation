@@ -262,6 +262,9 @@ async function getInvoiceLineItems(invoiceId) {
       description: '',
       style: line.custcol_modo_item_style || '',
       color: colorName(line.custcol_modo_color) || colorName(line.custcol_sps_productcolorcode),
+      // A separate short code (e.g. "BLKG" for "Black Grey Gradient") —
+      // customers sometimes type this instead of the full color name.
+      colorCode: line.custcol_modo_colorcode || '',
       // Plain string directly on the line itself — "OPTICAL" for the frame,
       // "CLIP" for its separate magnetic sun clip. This is what actually
       // distinguishes a frame from its clip when they otherwise share

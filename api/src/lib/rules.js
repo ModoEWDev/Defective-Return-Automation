@@ -152,7 +152,7 @@ async function evaluateClaim(claim, context) {
         .filter((t) => t.length > 1);
 
       const matches = itemsToMatch.filter((item) => {
-        const haystack = `${item.style} ${item.color}`.toLowerCase();
+        const haystack = `${item.style} ${item.color} ${item.colorCode}`.toLowerCase();
         return tokens.length > 0 && tokens.every((t) => haystack.includes(t));
       });
 

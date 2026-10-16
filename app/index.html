@@ -20,10 +20,6 @@
     --approved-bg: #EEF4EF;
     --offer: #A67C3D;
     --offer-bg: #F8F1E6;
-    --escalate: #5B6770;
-    --escalate-bg: #EEF0F1;
-    --invalid: #4A6FA0;
-    --invalid-bg: #EBF1F7;
     --error: #B3453F;
     --error-bg: #FAEDEC;
     --radius: 10px;
@@ -328,12 +324,23 @@
   .result-card.approved .result-title { color: var(--approved); }
   .result-card.offer { background: var(--offer-bg); }
   .result-card.offer .result-title { color: var(--offer); }
-  .result-card.escalate { background: var(--escalate-bg); }
-  .result-card.escalate .result-title { color: var(--escalate); }
-  .result-card.invalid { background: var(--invalid-bg); }
-  .result-card.invalid .result-title { color: var(--invalid); }
-  .result-card.error { background: var(--error-bg); }
-  .result-card.error .result-title { color: var(--error); }
+  .result-card.escalate,
+  .result-card.invalid,
+  .result-card.error {
+    background: var(--error-bg);
+  }
+
+  .result-card.escalate .result-title,
+  .result-card.invalid .result-title,
+  .result-card.error .result-title {
+    color: var(--error);
+  }
+
+  .result-card.escalate .result-message,
+  .result-card.invalid .result-message,
+  .result-card.error .result-message {
+    font-weight: 600;
+  }
 
   .try-again {
     display: inline-block;
